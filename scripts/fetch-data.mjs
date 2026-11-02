@@ -67,6 +67,7 @@ function firstArray(obj, keys) {
 const STATE_FIELDS = [
   "kid", "name", "player_count", "located", "active_7d", "alliance_count", "age_days", "opened_on",
   "power", "avg_power", "power_rank", "activity_rank", "health", "power_gain_7d", "state_transfer_score",
+  "gov_power", "alliance_power", "labyrinth", "banner_url",
 ];
 const pick = (o, fields) => Object.fromEntries(fields.filter((f) => o?.[f] !== undefined).map((f) => [f, o[f]]));
 
@@ -132,7 +133,7 @@ try {
     const boards = body.boards ?? state.boards ?? null;
     await writeJSON(`states/${kid}.json`, { updated_at: now, state: { ...state, boards: undefined }, boards });
     const jp = japaneseShare(boardRows(boards, "personal_power").map((r) => r.nick_name));
-    if (jp) lang.states[kid] = { ...jp, at: now.slice(0, 10) };
+    if (jp || state.banner_url) lang.states[kid] = { ...(jp || {}), banner: state.banner_url ?? null, at: now.slice(0, 10) };
     detailDone++;
     return boards;
   }
@@ -209,7 +210,11 @@ function boardRows(boards, key) {
 }
 
 if (globalThis.__rotation) await writeJSON("rotation.json", globalThis.__rotation);
-if (globalThis.__lang) await writeJSON("lang.json", globalThis.__lang);
+if (globalThis.__lang) {
+  await writeJSON("lang.json", globalThis.__lang);
+  const withBanner = Object.values(globalThis.__lang.states).filter((x) => x.banner).length;
+  log.push(`旗(banner_url)が入っている王国: ${withBanner}件`);
+}
 meta.updated_at = now;
 meta.api_calls = calls;
 meta.log = log;

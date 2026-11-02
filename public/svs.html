@@ -1,0 +1,722 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SvS割り振り | WoS 王国データ</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚔️</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #EAF0F5; --surface: #F7FAFC; --ink: #16273A; --steel: #586D82;
+    --rime: #C9D5E1; --ember: #D47A22; --ember-soft: #F3D2AE; --link: #1F5E99;
+    --frost: #3B7BB8; --frost-soft: #D3E3F2; --warn: #B4471F; --warn-soft: #F7DCD1;
+    color-scheme: light;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0E1A26; --surface: #152536; --ink: #E2EBF3; --steel: #91A5B9;
+      --rime: #263A50; --ember: #F09A46; --ember-soft: #5A3A1C; --link: #8CC2F2;
+      --frost: #7DB4E8; --frost-soft: #1C3956; --warn: #F08A66; --warn-soft: #4A2416;
+      color-scheme: dark;
+    }
+  }
+  *, *::before, *::after { box-sizing: inherit; }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", sans-serif;
+    font-size: 15px; line-height: 1.6;
+  }
+  a { color: var(--link); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  :focus-visible { outline: 2px solid var(--ember); outline-offset: 2px; border-radius: 3px; }
+  .num { font-family: "Saira Condensed", "Arial Narrow", sans-serif; font-variant-numeric: tabular-nums; }
+
+  header.site { border-bottom: 1px solid var(--rime); background: var(--surface); }
+  header.site .in { max-width: 1180px; margin: 0 auto; padding: 12px 20px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+  header.site .brand { font-weight: 700; font-size: 17px; color: var(--ink); }
+  header.site nav { display: flex; gap: 16px; font-size: 14px; }
+  header.site nav a[aria-current] { color: var(--ink); font-weight: 700; }
+  header.site .roster { margin-left: auto; font-size: 12px; color: var(--steel); }
+
+  main { max-width: 1180px; margin: 0 auto; padding: 24px 20px 72px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--steel); font-size: 13px; margin: 0 0 16px; }
+
+  button, select, input { font: inherit; color: var(--ink); }
+  button {
+    font-size: 14px; padding: 7px 14px; border: 1px solid var(--rime); border-radius: 6px;
+    background: var(--surface); cursor: pointer;
+  }
+  button:hover { border-color: var(--steel); }
+  button.primary { background: var(--ember); border-color: var(--ember); color: var(--surface); font-weight: 700; }
+  button.primary:hover { filter: brightness(1.06); }
+  button.ghost { border-color: transparent; background: transparent; color: var(--steel); padding: 4px 8px; }
+  button.ghost:hover { color: var(--warn); }
+  input[type=text], input[type=number], select, textarea {
+    font-size: 15px; padding: 6px 8px; border: 1px solid var(--rime); border-radius: 6px;
+    background: var(--surface); min-width: 0;
+  }
+  textarea { width: 100%; font: 13px/1.5 ui-monospace, Menlo, Consolas, monospace; color: var(--ink); resize: vertical; }
+
+  /* 操作バー（保存・読み込み） */
+  .bar { background: var(--surface); border: 1px solid var(--rime); border-radius: 8px; padding: 10px 12px 12px; margin: 0 0 20px; }
+  .bar.save { margin: 28px 0 0; border-color: var(--ember); }
+  .bar h2 { font-size: 13px; font-weight: 700; color: var(--steel); margin: 0 0 8px; }
+  .bar .btns { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .bar .sep { flex: 1; }
+  .bar .saved { font-size: 12px; color: var(--steel); }
+
+  /* グループ */
+  .groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 540px), 1fr)); gap: 20px; }
+  .group { background: var(--surface); border: 1px solid var(--rime); border-radius: 8px; overflow: hidden; border-top: 4px solid var(--ember); }
+  .group.def { border-top-color: var(--frost); }
+  .ghead { display: flex; gap: 8px; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--rime); flex-wrap: wrap; }
+  .ghead input.gname { font-weight: 700; font-size: 17px; flex: 1 1 140px; border-color: transparent; background: transparent; padding: 4px 6px; }
+  .ghead input.gname:hover, .ghead input.gname:focus { border-color: var(--rime); background: var(--bg); }
+  .seg { display: inline-flex; border: 1px solid var(--rime); border-radius: 6px; overflow: hidden; }
+  .seg button { border: 0; border-radius: 0; padding: 5px 12px; font-size: 13px; background: transparent; }
+  .seg button[aria-pressed=true].atk { background: var(--ember); color: var(--surface); font-weight: 700; }
+  .seg button[aria-pressed=true].def { background: var(--frost); color: var(--surface); font-weight: 700; }
+
+  .gbody { padding: 12px 14px 14px; }
+  .role { font-size: 12px; color: var(--steel); margin: 4px 0 6px; display: flex; justify-content: space-between; align-items: baseline; }
+  .leader { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-bottom: 14px; }
+  .leader .memberwrap { grid-column: 1 / -1; }
+  .leader .slot { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .leader .slot > span:first-child { font-size: 12px; color: var(--steel); padding-left: 2px; }
+  .leader .ratio { display: flex; align-items: center; gap: 4px; margin-top: 4px; }
+  .leader .ratio input { width: 100%; text-align: right; font-family: "Saira Condensed", "Arial Narrow", sans-serif; font-size: 17px; padding: 4px 8px; }
+  .leader .ratio i { font-style: normal; font-size: 13px; color: var(--steel); }
+  .ratiosum { grid-column: 1 / -1; font-size: 12px; color: var(--steel); text-align: right; }
+  .ratiosum b { font-family: "Saira Condensed", "Arial Narrow", sans-serif; font-size: 15px; color: var(--ink); }
+  .ratiosum.bad b, .ratiosum.bad { color: var(--warn); }
+  .jrow { display: grid; grid-template-columns: 26px minmax(0, 1.4fr) minmax(0, 1.2fr) 74px 30px; gap: 6px; align-items: center; padding: 4px 0; border-radius: 6px; }
+  .jrow .idx { text-align: center; color: var(--steel); font-size: 13px; }
+  .jrow.active .idx { color: var(--surface); background: var(--ember); border-radius: 4px; font-weight: 700; }
+  .group.def .jrow.active .idx { background: var(--frost); }
+  .leader input, .leader select, .jrow input, .jrow select { width: 100%; }
+  .memberwrap { position: relative; min-width: 0; }
+  .memberwrap .meta { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: 11px; color: var(--steel); pointer-events: none; white-space: nowrap; max-width: 45%; overflow: hidden; text-overflow: ellipsis; }
+  .memberwrap input { padding-right: 70px; }
+  .addj { margin-top: 8px; }
+
+  .summary { margin-top: 12px; padding: 10px 12px; border-radius: 6px; background: var(--bg); font-size: 13px; }
+  .summary b { font-weight: 700; }
+  .summary ul { margin: 4px 0 0; padding-left: 1.2em; }
+  .summary .warn { color: var(--warn); }
+  .summary .note { color: var(--steel); }
+
+  .empty { text-align: center; padding: 48px 20px; border: 1px dashed var(--rime); border-radius: 8px; color: var(--steel); }
+  .addgroup { margin-top: 20px; }
+
+  dialog { border: 1px solid var(--rime); border-radius: 10px; background: var(--surface); color: var(--ink); width: min(640px, calc(100vw - 32px)); padding: 20px; }
+  dialog::backdrop { background: rgba(10, 20, 30, .45); }
+  dialog h2 { font-size: 17px; margin: 0 0 8px; }
+  dialog p { font-size: 14px; margin: 0 0 10px; }
+  dialog .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; flex-wrap: wrap; }
+  dialog .msg { font-size: 13px; min-height: 1.4em; }
+  dialog .msg.err { color: var(--warn); }
+
+  .toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 16px; border-radius: 6px; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 20; }
+  .toast.show { opacity: 1; }
+
+  footer { max-width: 1180px; margin: 0 auto; padding: 0 20px 40px; font-size: 12px; color: var(--steel); }
+
+  @media (max-width: 560px) {
+    main { padding: 16px 12px 72px; }
+    .jrow { grid-template-columns: 22px minmax(0, 1fr) 64px 28px; grid-template-areas: "i m m x" "i h l x"; row-gap: 4px; padding: 6px 0; border-bottom: 1px solid var(--rime); }
+    .jrow .idx { grid-area: i; align-self: start; margin-top: 6px; }
+    .jrow .memberwrap { grid-area: m; }
+    .jrow .hero { grid-area: h; }
+    .jrow .lv { grid-area: l; }
+    .jrow .del { grid-area: x; align-self: start; }
+    input[type=text], input[type=number], select { font-size: 16px; } /* iPhoneの自動拡大を防ぐ */
+  }
+  @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+</style>
+</head>
+<body>
+<header class="site">
+  <div class="in">
+    <a class="brand" href="./">🧊 WoS 王国データ</a>
+    <nav><a href="./">王国一覧</a><a href="svs.html" aria-current="page">SvS割り振り</a></nav>
+    <span class="roster" id="rosterInfo">名簿を読み込み中…</span>
+  </div>
+</header>
+
+<main>
+  <h1>SvS割り振り</h1>
+  <p class="sub">グループごとに集結（攻撃）か駐屯（防衛）を選び、箱主と乗り手を決めます。乗り手は先頭英雄の第1遠征スキルだけが加わり、有効になるのはレベルの高い4つまでです。有効になる見込みの4人は番号に色が付きます。</p>
+
+  <section class="bar box" aria-labelledby="hLoad">
+    <h2 id="hLoad">読み込み</h2>
+    <div class="btns">
+      <button id="btnLoadCode">パスコードから読み込む</button>
+      <button id="btnLoadCsv">CSVから読み込む</button>
+      <input type="file" id="csvFile" accept=".csv,text/csv" hidden>
+      <span class="sep"></span>
+      <button class="ghost" id="btnClear">すべて消去</button>
+    </div>
+  </section>
+
+  <div class="groups" id="groups"></div>
+  <button class="addgroup primary" id="btnAddGroup">グループを追加</button>
+
+  <section class="bar box save" aria-labelledby="hSave">
+    <h2 id="hSave">保存・共有</h2>
+    <div class="btns">
+      <button class="primary" id="btnCode">パスコードを発行</button>
+      <button id="btnCsv">CSVで保存</button>
+      <button id="btnChat">チャット用にコピー</button>
+      <span class="sep"></span>
+      <span class="saved" id="savedInfo"></span>
+    </div>
+  </section>
+</main>
+
+<footer>
+  英雄一覧と兵種はアルテマ「英雄一覧」「SSR英雄一覧」（2026年9月29日更新、第18世代まで）と「SR英雄一覧」を元にしています。メンバー名簿はサイトが毎日取得している同盟データです。割り振りの途中経過はこのブラウザに自動で一時保存されます。共有にはパスコードかCSVを使ってください。
+</footer>
+
+<datalist id="memberList"></datalist>
+
+<dialog id="dlgCode">
+  <h2>パスコード</h2>
+  <p>この文字列をコピーして共有してください。「パスコードから読み込む」に貼り付けると、今の割り振りを復元できます。</p>
+  <textarea id="codeOut" rows="6" readonly></textarea>
+  <p class="msg" id="codeInfo"></p>
+  <div class="actions"><button id="btnCopy" class="primary">コピー</button><button data-close>閉じる</button></div>
+</dialog>
+
+<dialog id="dlgChat">
+  <h2>チャット用テキスト</h2>
+  <p>同盟チャットやLINEにそのまま貼り付けられる形です。◎は乗り手スキルが有効になる見込みの人です。</p>
+  <textarea id="chatOut" rows="12" readonly></textarea>
+  <p class="msg" id="chatInfo"></p>
+  <div class="actions"><button id="btnChatCopy" class="primary">コピー</button><button data-close>閉じる</button></div>
+</dialog>
+
+<dialog id="dlgLoad">
+  <h2>パスコードから読み込む</h2>
+  <p>共有されたパスコード（SVS1- で始まる文字列）を貼り付けてください。今の割り振りは置き換わります。</p>
+  <textarea id="codeIn" rows="6" placeholder="SVS1-..."></textarea>
+  <p class="msg" id="loadMsg"></p>
+  <div class="actions"><button data-close>やめる</button><button id="btnDoLoad" class="primary">読み込む</button></div>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+// ===== 英雄一覧 =====
+// 出典: アルテマ「英雄一覧」https://altema.jp/whiteoutsurvival/charalist（2026/09/29更新・第18世代まで）
+// 【重要】パスコードは英雄をこの配列の番号で記録するため、並べ替え・削除は禁止。新しい英雄は末尾に追加すること。
+const HEROES = [
+  // SSR 第1〜第18世代
+  "ジャスミン","ジンマン","ナタリア","ジェロニモ",
+  "フリント","フレンダー","アロンゾ",
+  "ローガン","ミア","グレッグ",
+  "アクモス","レイナ","リオン",
+  "ヘクトー","ノラ","グエン",
+  "無名","レネ","ウェイン",
+  "エディス","ゴードン","ブラッドリー",
+  "ガト","ソニヤ","ヘンドリック",
+  "マグヌス","フレッド","シュラ",
+  "グレゴリー","ブランシュ","フレイヤ",
+  "エリオノーラ","ロイド","ルーファス",
+  "ヘルヴィル","カロール","ライジーア",
+  "ギーゼラ","フローラ","ウルカヌス",
+  "エリーフ","ドミニク","カーラ",
+  "ハンク","エステラ","ヴィヴィカ",
+  "シガー","ウルタール","アシュリン",
+  "エイダン","ベルサ","エリノ",
+  "ヨドン","ニコラ","アイシア",
+  // SR
+  "パトリック","ボーガン","ジェシー","バシティ","ジーナ","ジャセル","ソユン","リンセツ","セルゲイ",
+  // R
+  "チャーリー","クラリス","スミス","ユージーン",
+];
+const HERO_GROUPS = [
+  ["SSR", 0, 55], ["SR", 55, 64], ["R", 64, 68],
+];
+// 兵種。出典: アルテマ「SSR英雄一覧」（2026/09/29更新）「SR英雄一覧」「盾兵の英雄一覧」
+// チャーリー・クラリスは兵種を確認できなかったため未設定（箱主の3枠すべてで選べる）
+const HERO_CLASS = (() => {
+  const c = {};
+  "ヨドン エイダン シガー ハンク エリーフ ギーゼラ ヘルヴィル エリオノーラ グレゴリー マグヌス ガト エディス 無名 ヘクトー アクモス ローガン ジェロニモ フリント ナタリア セルゲイ スミス ユージーン".split(" ").forEach(n => c[n] = 0);
+  "ニコラ ベルサ ウルタール エステラ ドミニク フローラ カロール ロイド フレイヤ フレッド ソニヤ ゴードン レネ ノラ レイナ ミア フレンダー ジャスミン パトリック ジェシー リンセツ ボーガン".split(" ").forEach(n => c[n] = 1);
+  "アイシア エリノ アシュリン ヴィヴィカ カーラ ウルカヌス ライジーア ルーファス ブランシュ シュラ ヘンドリック ブラッドリー ウェイン グエン リオン アロンゾ グレッグ ジンマン バシティ ソユン ジャセル ジーナ".split(" ").forEach(n => c[n] = 2);
+  return c;
+})();
+const CLASS_NAMES = ["盾兵", "槍兵", "弓兵"];
+const MAX_JOIN_SKILLS = 4;
+
+// ===== 状態 =====
+let state = { groups: [] };
+let roster = [];        // { id, name, tag, kid, power, furnace }
+const byLabel = new Map();
+const app = document.getElementById("groups");
+const STORE_KEY = "svs-plan-v1";
+
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const uid = () => Math.random().toString(36).slice(2, 9);
+const emptyMember = () => ({ id: "", name: "", tag: "" });
+const newGroup = (n) => ({ id: uid(), name: `グループ${n}`, type: "atk", leader: { m: emptyMember(), heroes: [null, null, null], ratio: [null, null, null] }, joiners: [] });
+const newJoiner = () => ({ id: uid(), m: emptyMember(), hero: null, lv: 5 });
+
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("show"), 2200);
+}
+
+// ===== 名簿の読み込み（サイトが毎日取得している同盟データ） =====
+const safeTag = tag => encodeURIComponent(tag).replace(/%/g, "_");
+function firstArray(obj, keys) {
+  if (Array.isArray(obj)) return obj;
+  if (!obj || typeof obj !== "object") return [];
+  for (const k of keys) if (Array.isArray(obj[k])) return obj[k];
+  return [];
+}
+async function loadRoster() {
+  const info = document.getElementById("rosterInfo");
+  try {
+    const idx = await fetch("data/alliances/index.json", { cache: "no-cache" }).then(r => r.ok ? r.json() : null);
+    const list = idx?.alliances || [];
+    const files = await Promise.all(list.map(a =>
+      fetch(`data/alliances/${a.kid}/${safeTag(a.tag)}.json`, { cache: "no-cache" }).then(r => r.ok ? r.json() : null).catch(() => null)
+        .then(d => ({ a, d }))));
+    for (const { a, d } of files) {
+      if (!d) continue;
+      for (const m of firstArray(d.members, ["members", "roster"])) {
+        const id = String(m.fid ?? m.chief_id ?? m.player_id ?? m.uid ?? "");
+        const name = m.nick_name ?? m.name ?? "";
+        if (!name) continue;
+        roster.push({ id, name, tag: a.tag, kid: a.kid, power: Number(m.power) || 0, furnace: m.furnace_level ?? null });
+      }
+    }
+    roster.sort((x, y) => y.power - x.power);
+    const dl = document.getElementById("memberList");
+    dl.innerHTML = roster.map(r => {
+      const label = `${r.name} [${r.tag}]`;
+      byLabel.set(label, r);
+      return `<option value="${esc(label)}">${esc(jp(r.power))}</option>`;
+    }).join("");
+    info.textContent = roster.length ? `名簿 ${roster.length}人（${list.length}同盟）` : "名簿データなし（名前は手入力できます）";
+  } catch {
+    info.textContent = "名簿を読み込めませんでした（名前は手入力できます）";
+  }
+}
+function jp(n) {
+  if (!n) return "";
+  const a = Math.abs(n);
+  if (a >= 1e8) return Number((n / 1e8).toFixed(2)).toLocaleString("ja-JP") + "億";
+  if (a >= 1e4) return Number((n / 1e4).toFixed(0)).toLocaleString("ja-JP") + "万";
+  return n.toLocaleString("ja-JP");
+}
+
+// 入力文字列 → メンバー。名簿にあれば ID・同盟を紐づけ、なければ手入力として名前だけ保持
+function parseMember(text, prev) {
+  const v = text.trim();
+  if (!v) return emptyMember();
+  const r = byLabel.get(v);
+  if (r) return { id: r.id, name: r.name, tag: r.tag };
+  if (prev && v === memberLabel(prev)) return prev;
+  const m = v.match(/^(.*)\s\[([^\]]+)\]$/);
+  if (m) {
+    const hit = roster.find(x => x.name === m[1] && x.tag === m[2]);
+    return hit ? { id: hit.id, name: hit.name, tag: hit.tag } : { id: "", name: m[1], tag: m[2] };
+  }
+  return { id: "", name: v, tag: "" };
+}
+const memberLabel = m => !m?.name ? "" : m.tag ? `${m.name} [${m.tag}]` : m.name;
+function memberMeta(m) {
+  if (!m?.name) return "";
+  if (!m.id) return "手入力";
+  const r = roster.find(x => x.id === m.id);
+  return r ? jp(r.power) : "";
+}
+
+// ===== 描画 =====
+// cls: 0=盾兵 1=槍兵 2=弓兵 / undefined=すべて（乗り手の先頭英雄）
+function heroOptions(sel, emptyLabel, cls) {
+  let h = `<option value="">${emptyLabel}</option>`;
+  let shown = false;
+  const ok = i => cls === undefined || HERO_CLASS[HEROES[i]] === cls;
+  for (const [label, s, e] of HERO_GROUPS) {
+    let g = "";
+    for (let i = s; i < e; i++) if (ok(i) && HERO_CLASS[HEROES[i]] !== undefined || (cls === undefined && HERO_CLASS[HEROES[i]] === undefined)) { g += `<option value="${i}"${sel === i ? " selected" : ""}>${esc(HEROES[i])}</option>`; if (sel === i) shown = true; }
+    if (g) h += `<optgroup label="${label}">${g}</optgroup>`;
+  }
+  if (cls !== undefined) {
+    let g = "";
+    for (let i = 0; i < HEROES.length; i++) if (HERO_CLASS[HEROES[i]] === undefined) { g += `<option value="${i}"${sel === i ? " selected" : ""}>${esc(HEROES[i])}</option>`; if (sel === i) shown = true; }
+    if (g) h += `<optgroup label="兵種未確認">${g}</optgroup>`;
+  }
+  if (typeof sel === "number" && !shown && HEROES[sel]) h += `<option value="${sel}" selected>${esc(HEROES[sel])}（${CLASS_NAMES[HERO_CLASS[HEROES[sel]]] ?? "兵種違い"}）</option>`;
+  if (typeof sel === "string" && sel) h += `<option value="s:${esc(sel)}" selected>${esc(sel)}（一覧にない英雄）</option>`;
+  return h;
+}
+const heroName = h => h == null || h === "" ? "" : typeof h === "number" ? (HEROES[h] ?? "") : String(h);
+function readHero(v) { return v === "" ? null : v.startsWith("s:") ? v.slice(2) : Number(v); }
+
+// 兵種比率（盾:槍:弓、合計100%）
+const ratioOf = g => g.leader.ratio || [null, null, null];
+function ratioSum(g) { const r = ratioOf(g); return r.some(v => v != null) ? r.reduce((a, v) => a + (v || 0), 0) : null; }
+const ratioText = g => ratioOf(g).some(v => v != null) ? ratioOf(g).map(v => v ?? 0).join(":") : "";
+function ratioSumHtml(g) {
+  const t = ratioSum(g);
+  return t == null ? "兵種比率 未入力" : `兵種比率 <b>${ratioText(g).replace(/:/g, " : ")}</b>　合計 <b>${t}</b>%${t === 100 ? "" : "（100にしてください）"}`;
+}
+
+// 有効になる乗り手スキル（レベルが高い順に4つ。同レベルは並び順＝参加順の早い方とみなす）
+function activeJoiners(g) {
+  const cand = g.joiners.map((j, i) => ({ j, i })).filter(x => x.j.m.name && x.j.hero != null && x.j.hero !== "");
+  cand.sort((a, b) => (b.j.lv - a.j.lv) || (a.i - b.i));
+  const act = cand.slice(0, MAX_JOIN_SKILLS);
+  const tie = cand.length > MAX_JOIN_SKILLS && cand[MAX_JOIN_SKILLS].j.lv === act[act.length - 1].j.lv;
+  return { act, tie, cand };
+}
+
+function memberUsage() {
+  const use = new Map();
+  for (const g of state.groups) {
+    const add = (m, role) => { if (!m.name) return; const k = m.id || "n:" + m.name; if (!use.has(k)) use.set(k, []); use.get(k).push({ g: g.name, role }); };
+    add(g.leader.m, "箱主");
+    g.joiners.forEach(j => add(j.m, "乗り手"));
+  }
+  return use;
+}
+
+function memberInput(m, attrs) {
+  return `<div class="memberwrap"><input type="text" list="memberList" value="${esc(memberLabel(m))}" placeholder="名前を入力して選択" autocomplete="off" ${attrs}><span class="meta">${esc(memberMeta(m))}</span></div>`;
+}
+
+function groupInfo(g, usage) {
+  const { act, tie, cand } = activeJoiners(g);
+  const warns = [];
+  if (!g.leader.m.name) warns.push("箱主が未選択です。");
+  { const t = ratioSum(g); if (t != null && t !== 100) warns.push(`兵種比率の合計が${t}%です。100%になるように入力してください。`); }
+  g.leader.heroes.forEach((h, k) => { const c = typeof h === "number" ? HERO_CLASS[HEROES[h]] : undefined; if (c !== undefined && c !== k) warns.push(`${CLASS_NAMES[k]}の枠に${esc(HEROES[h])}（${CLASS_NAMES[c]}）が入っています。`); });
+  if (cand.length < MAX_JOIN_SKILLS) warns.push(`英雄つきの乗り手が${cand.length}人で、乗り手スキルの枠（${MAX_JOIN_SKILLS}つ）が埋まっていません。`);
+  if (tie) warns.push(`5人目以降に4番目と同じLv${act[act.length - 1].j.lv}のスキルがあります。同レベルの場合どれが有効になるかは、参加順で変わる可能性があります（WoSの資料では未確認）。`);
+  const dup = new Map();
+  [g.leader.m, ...g.joiners.map(j => j.m)].forEach(m => { if (!m.name) return; const k = m.id || "n:" + m.name; dup.set(k, (dup.get(k) || 0) + 1); });
+  const dupNames = [...dup].filter(([, c]) => c > 1).map(([k]) => k.startsWith("n:") ? k.slice(2) : (roster.find(r => r.id === k)?.name || k));
+  if (dupNames.length) warns.push(`同じグループに重複しています: ${dupNames.map(esc).join("、")}`);
+  const notes = []; const seen = new Set();
+  for (const m of [g.leader.m, ...g.joiners.map(j => j.m)]) {
+    if (!m.name) continue;
+    const k = m.id || "n:" + m.name; if (seen.has(k)) continue; seen.add(k);
+    const u = usage.get(k) || [];
+    if (u.length > 1) notes.push(`${esc(m.name)}は${u.length}か所に入っています（${u.map(x => esc(x.g) + "の" + x.role).join("、")}）。`);
+  }
+  const html = `<b>有効になる乗り手スキル</b>
+    ${act.length ? `<ul>${act.map(x => `<li>${esc(heroName(x.j.hero))} Lv${x.j.lv}（${esc(x.j.m.name)}）</li>`).join("")}</ul>` : `<div class="note">まだありません。</div>`}
+    ${warns.length ? `<ul>${warns.map(w => `<li class="warn">${w}</li>`).join("")}</ul>` : ""}
+    ${notes.length ? `<ul>${notes.map(n => `<li class="note">${n}</li>`).join("")}</ul>` : ""}`;
+  return { html, activeIdx: new Set(act.map(x => x.i)) };
+}
+
+function render() {
+  if (!state.groups.length) {
+    app.innerHTML = `<div class="empty">まだグループがありません。「グループを追加」から始めてください。</div>`;
+    return;
+  }
+  const usage = memberUsage();
+  app.innerHTML = state.groups.map((g, gi) => {
+    const { html, activeIdx } = groupInfo(g, usage);
+    return `<section class="group ${g.type}" data-g="${gi}" aria-label="${esc(g.name)}">
+      <div class="ghead">
+        <input class="gname" type="text" value="${esc(g.name)}" data-act="gname" aria-label="グループ名">
+        <span class="seg" role="group" aria-label="集結か駐屯か">
+          <button class="atk" data-act="type" data-v="atk" aria-pressed="${g.type === "atk"}">集結</button>
+          <button class="def" data-act="type" data-v="def" aria-pressed="${g.type === "def"}">駐屯</button>
+        </span>
+        <button class="ghost" data-act="delgroup" aria-label="${esc(g.name)}を削除">削除</button>
+      </div>
+      <div class="gbody">
+        <div class="role"><span>箱主（${g.type === "def" ? "駐屯" : "集結"}の主）と英雄</span></div>
+        <div class="leader">
+          ${memberInput(g.leader.m, `data-act="leader" aria-label="箱主"`)}
+          ${[0, 1, 2].map(k => `<div class="slot"><span>${CLASS_NAMES[k]}</span><select data-act="lhero" data-k="${k}" aria-label="箱主の${CLASS_NAMES[k]}英雄">${heroOptions(g.leader.heroes[k], "未選択", k)}</select>
+            <span class="ratio"><input type="number" inputmode="numeric" min="0" max="100" step="1" data-act="ratio" data-k="${k}" value="${ratioOf(g)[k] ?? ""}" placeholder="-" aria-label="${CLASS_NAMES[k]}の比率（%）"><i>%</i></span></div>`).join("")}
+          <div class="ratiosum${ratioSum(g) != null && ratioSum(g) !== 100 ? " bad" : ""}" data-ratiosum>${ratioSumHtml(g)}</div>
+        </div>
+        <div class="role"><span>乗り手（先頭英雄と第1遠征スキルLv）</span><span class="num">${g.joiners.length}人</span></div>
+        ${g.joiners.map((j, ji) => `<div class="jrow${activeIdx.has(ji) ? " active" : ""}" data-j="${ji}">
+            <span class="idx num">${ji + 1}</span>
+            ${memberInput(j.m, `data-act="jm" aria-label="乗り手${ji + 1}"`)}
+            <select class="hero" data-act="jhero" aria-label="乗り手${ji + 1}の先頭英雄">${heroOptions(j.hero, "英雄なし")}</select>
+            <select class="lv" data-act="jlv" aria-label="乗り手${ji + 1}の第1スキルLv">${[5, 4, 3, 2, 1].map(l => `<option value="${l}"${j.lv === l ? " selected" : ""}>Lv${l}</option>`).join("")}</select>
+            <button class="ghost del" data-act="deljoiner" aria-label="乗り手${ji + 1}を削除">✕</button>
+          </div>`).join("")}
+        <button class="addj" data-act="addjoiner">乗り手を追加</button>
+        <div class="summary" aria-live="polite">${html}</div>
+      </div>
+    </section>`;
+  }).join("");
+}
+
+// 入力欄はそのままに、判定結果（有効スキル・警告・名簿の補足）だけを書き換える
+function refresh() {
+  const usage = memberUsage();
+  state.groups.forEach((g, gi) => {
+    const sec = app.querySelector(`[data-g="${gi}"]`); if (!sec) return;
+    const { html, activeIdx } = groupInfo(g, usage);
+    sec.querySelector(".summary").innerHTML = html;
+    sec.setAttribute("aria-label", g.name);
+    const rs = sec.querySelector("[data-ratiosum]"); if (rs) { rs.innerHTML = ratioSumHtml(g); rs.classList.toggle("bad", ratioSum(g) != null && ratioSum(g) !== 100); }
+    sec.querySelectorAll(".jrow").forEach(r => r.classList.toggle("active", activeIdx.has(Number(r.dataset.j))));
+    const leaderMeta = sec.querySelector('[data-act="leader"]')?.nextElementSibling;
+    if (leaderMeta) leaderMeta.textContent = memberMeta(g.leader.m);
+    g.joiners.forEach((j, ji) => { const m = sec.querySelector(`[data-j="${ji}"] [data-act="jm"]`); if (m) { m.value = memberLabel(j.m); m.nextElementSibling.textContent = memberMeta(j.m); } });
+    const lm = sec.querySelector('[data-act="leader"]'); if (lm && document.activeElement !== lm) lm.value = memberLabel(g.leader.m);
+  });
+}
+
+// ===== 操作 =====
+function changed(structural = true) {
+  if (structural) render(); else refresh();
+  persist();
+}
+function persist() {
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify(state));
+    document.getElementById("savedInfo").textContent = "このブラウザに一時保存済み";
+  } catch { document.getElementById("savedInfo").textContent = ""; }
+}
+
+app.addEventListener("click", e => {
+  const b = e.target.closest("button[data-act]"); if (!b) return;
+  const g = state.groups[Number(b.closest("[data-g]").dataset.g)];
+  const act = b.dataset.act;
+  if (act === "type") { g.type = b.dataset.v; changed(); }
+  else if (act === "addjoiner") { g.joiners.push(newJoiner()); changed(); const rows = app.querySelectorAll(`[data-g="${state.groups.indexOf(g)}"] .jrow input`); rows[rows.length - 1]?.focus(); }
+  else if (act === "deljoiner") { g.joiners.splice(Number(b.closest("[data-j]").dataset.j), 1); changed(); }
+  else if (act === "delgroup") {
+    if (!confirm(`「${g.name}」を削除しますか？`)) return;
+    state.groups.splice(state.groups.indexOf(g), 1); changed();
+  }
+});
+app.addEventListener("input", e => {
+  const el = e.target; if (el.dataset.act !== "ratio") return;
+  const g = state.groups[Number(el.closest("[data-g]").dataset.g)];
+  const tmp = { leader: { ratio: [0, 1, 2].map(k => { const i = el.closest(".leader").querySelector(`[data-act="ratio"][data-k="${k}"]`); return i.value.trim() === "" ? null : Number(i.value) || 0; }) } };
+  const box = el.closest(".leader").querySelector("[data-ratiosum]");
+  box.innerHTML = ratioSumHtml(tmp); box.classList.toggle("bad", ratioSum(tmp) != null && ratioSum(tmp) !== 100);
+});
+app.addEventListener("change", e => {
+  const el = e.target; const act = el.dataset.act; if (!act) return;
+  const g = state.groups[Number(el.closest("[data-g]").dataset.g)];
+  const j = el.closest("[data-j]") ? g.joiners[Number(el.closest("[data-j]").dataset.j)] : null;
+  if (act === "gname") { g.name = el.value.trim() || g.name; el.value = g.name; changed(false); }
+  else if (act === "leader") { g.leader.m = parseMember(el.value, g.leader.m); el.value = memberLabel(g.leader.m); changed(false); }
+  else if (act === "lhero") { g.leader.heroes[Number(el.dataset.k)] = readHero(el.value); changed(false); }
+  else if (act === "ratio") {
+    const v = el.value.trim() === "" ? null : Math.max(0, Math.min(100, Math.round(Number(el.value))));
+    if (!g.leader.ratio) g.leader.ratio = [null, null, null];
+    g.leader.ratio[Number(el.dataset.k)] = Number.isFinite(v) ? v : null;
+    el.value = g.leader.ratio[Number(el.dataset.k)] ?? "";
+    changed(false);
+  }
+  else if (act === "jm") { j.m = parseMember(el.value, j.m); changed(false); }
+  else if (act === "jhero") { j.hero = readHero(el.value); changed(false); }
+  else if (act === "jlv") { j.lv = Number(el.value); changed(false); }
+});
+document.getElementById("btnAddGroup").onclick = () => {
+  state.groups.push(newGroup(state.groups.length + 1)); changed();
+  app.lastElementChild?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "nearest" });
+};
+document.getElementById("btnClear").onclick = () => {
+  if (!state.groups.length || !confirm("すべてのグループを消去しますか？（パスコードやCSVを保存していない場合は元に戻せません）")) return;
+  state = { groups: [] }; changed();
+};
+
+// ===== パスコード =====
+// 形式: "SVS1-" + base64url(deflate-raw(JSON))。JSONは短い配列形式。
+// グループ: [名前, 種別(0=集結/1=駐屯), 箱主, [盾,槍,弓の英雄], [[乗り手, 英雄, Lv], ...], [盾,槍,弓の比率]]（比率は後から追加。古いコードには無い）
+// メンバー: [ID, 名前, 同盟タグ]。英雄: 数字=HEROESの番号、文字列=一覧にない英雄、0以外の空=null
+const packM = m => [m.id || "", m.name || "", m.tag || ""];
+const unpackM = a => ({ id: String(a?.[0] ?? ""), name: String(a?.[1] ?? ""), tag: String(a?.[2] ?? "") });
+const packH = h => h == null ? "" : h;
+const unpackH = h => h === "" || h == null ? null : typeof h === "number" ? h : String(h);
+function packState(s) {
+  return s.groups.map(g => [g.name, g.type === "def" ? 1 : 0, packM(g.leader.m), g.leader.heroes.map(packH), g.joiners.map(j => [packM(j.m), packH(j.hero), j.lv]), ratioOf(g).map(v => v ?? "")]);
+}
+function unpackState(arr) {
+  if (!Array.isArray(arr)) throw new Error("形式が違います");
+  return { groups: arr.map((g, i) => ({
+    id: uid(), name: String(g[0] || `グループ${i + 1}`), type: g[1] === 1 ? "def" : "atk",
+    leader: { m: unpackM(g[2]), heroes: [0, 1, 2].map(k => unpackH(g[3]?.[k])), ratio: [0, 1, 2].map(k => typeof g[5]?.[k] === "number" ? g[5][k] : null) },
+    joiners: (g[4] || []).map(j => ({ id: uid(), m: unpackM(j[0]), hero: unpackH(j[1]), lv: [1, 2, 3, 4, 5].includes(j[2]) ? j[2] : 5 })),
+  })) };
+}
+const b64url = bytes => { let s = ""; bytes.forEach(b => s += String.fromCharCode(b)); return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); };
+const unb64url = str => { const s = atob(str.replace(/-/g, "+").replace(/_/g, "/")); return Uint8Array.from(s, c => c.charCodeAt(0)); };
+async function pipe(bytes, stream) { return new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(stream)).arrayBuffer()); }
+async function encodeCode(s) {
+  const json = new TextEncoder().encode(JSON.stringify(packState(s)));
+  if (typeof CompressionStream === "function") return "SVS1-" + b64url(await pipe(json, new CompressionStream("deflate-raw")));
+  return "SVS0-" + b64url(json); // 圧縮に対応していないブラウザ向け（読み込みはどちらも可）
+}
+async function decodeCode(code) {
+  const c = code.replace(/\s+/g, "");
+  const m = c.match(/^SVS([01])-([A-Za-z0-9_-]+)$/);
+  if (!m) throw new Error("パスコードの形式が違います。「SVS1-」で始まる文字列をそのまま貼り付けてください。");
+  let bytes = unb64url(m[2]);
+  if (m[1] === "1") {
+    if (typeof DecompressionStream !== "function") throw new Error("このブラウザは圧縮パスコードの読み込みに対応していません。別のブラウザか、CSVで読み込んでください。");
+    bytes = await pipe(bytes, new DecompressionStream("deflate-raw"));
+  }
+  return unpackState(JSON.parse(new TextDecoder().decode(bytes)));
+}
+
+const dlgCode = document.getElementById("dlgCode"), dlgLoad = document.getElementById("dlgLoad");
+document.querySelectorAll("dialog [data-close]").forEach(b => b.onclick = () => b.closest("dialog").close());
+document.getElementById("btnCode").onclick = async () => {
+  if (!state.groups.length) { toast("グループがありません"); return; }
+  const code = await encodeCode(state);
+  document.getElementById("codeOut").value = code;
+  const people = state.groups.reduce((n, g) => n + (g.leader.m.name ? 1 : 0) + g.joiners.filter(j => j.m.name).length, 0);
+  document.getElementById("codeInfo").textContent = `${state.groups.length}グループ・${people}人分、${code.length.toLocaleString("ja-JP")}文字`;
+  dlgCode.showModal();
+  document.getElementById("codeOut").select();
+};
+document.getElementById("btnCopy").onclick = () => copyText(document.getElementById("codeOut"));
+document.getElementById("btnLoadCode").onclick = () => {
+  document.getElementById("codeIn").value = ""; setMsg("");
+  dlgLoad.showModal(); document.getElementById("codeIn").focus();
+};
+function setMsg(t, err) { const m = document.getElementById("loadMsg"); m.textContent = t; m.className = "msg" + (err ? " err" : ""); }
+document.getElementById("btnDoLoad").onclick = async () => {
+  try {
+    const s = await decodeCode(document.getElementById("codeIn").value);
+    state = s; changed(); dlgLoad.close(); toast(`${s.groups.length}グループを読み込みました`);
+  } catch (e) { setMsg(e.message.startsWith("パスコード") || e.message.startsWith("この") ? e.message : "パスコードを読み取れませんでした。途中で切れていないか確認してください。", true); }
+};
+
+// ===== チャット用テキスト =====
+function toChatText(s) {
+  const who = m => m.name ? (m.tag ? `${m.name} [${m.tag}]` : m.name) : "未定";
+  return s.groups.map(g => {
+    const { act } = activeJoiners(g);
+    const on = new Set(act.map(x => x.i));
+    const heroes = g.leader.heroes.map((h, k) => `${CLASS_NAMES[k].slice(0, 1)}:${heroName(h) || "-"}`).join(" ");
+    const lines = [`【${g.name}】${g.type === "def" ? "駐屯" : "集結"}`, `箱主 ${who(g.leader.m)}（${heroes}）`];
+    if (ratioText(g)) lines.push(`比率 盾:槍:弓 = ${ratioText(g)}`);
+    if (g.joiners.length) {
+      lines.push("乗り手");
+      g.joiners.forEach((j, i) => lines.push(`${on.has(i) ? "◎" : "・"}${who(j.m)} ${heroName(j.hero) ? `${heroName(j.hero)} Lv${j.lv}` : "英雄なし"}`));
+    } else lines.push("乗り手 なし");
+    return lines.join("\n");
+  }).join("\n\n");
+}
+const dlgChat = document.getElementById("dlgChat");
+document.getElementById("btnChat").onclick = () => {
+  if (!state.groups.length) { toast("グループがありません"); return; }
+  const t = toChatText(state);
+  document.getElementById("chatOut").value = t;
+  document.getElementById("chatInfo").textContent = `${t.length.toLocaleString("ja-JP")}文字`;
+  dlgChat.showModal();
+};
+document.getElementById("btnChatCopy").onclick = () => copyText(document.getElementById("chatOut"));
+async function copyText(t) {
+  try { await navigator.clipboard.writeText(t.value); toast("コピーしました"); }
+  catch { t.select(); document.execCommand("copy"); toast("コピーしました"); }
+}
+
+// ===== CSV =====
+const CSV_HEAD = ["グループ", "種別", "役割", "名前", "同盟", "ID", "盾兵英雄", "槍兵英雄", "弓兵英雄", "盾兵比率", "槍兵比率", "弓兵比率", "先頭英雄", "スキルLv"];
+const csvCell = v => { const s = String(v ?? ""); return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+function toCsv(s) {
+  const rows = [CSV_HEAD];
+  for (const g of s.groups) {
+    const type = g.type === "def" ? "駐屯" : "集結";
+    rows.push([g.name, type, "箱主", g.leader.m.name, g.leader.m.tag, g.leader.m.id, ...g.leader.heroes.map(heroName), ...ratioOf(g).map(v => v ?? ""), "", ""]);
+    for (const j of g.joiners) rows.push([g.name, type, "乗り手", j.m.name, j.m.tag, j.m.id, "", "", "", "", "", "", heroName(j.hero), j.lv]);
+  }
+  return rows.map(r => r.map(csvCell).join(",")).join("\r\n");
+}
+function parseCsv(text) {
+  text = text.replace(/^\uFEFF/, "");
+  const rows = []; let row = [], cell = "", q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; } else cell += c; }
+    else if (c === '"') q = true;
+    else if (c === ",") { row.push(cell); cell = ""; }
+    else if (c === "\n" || c === "\r") { if (c === "\r" && text[i + 1] === "\n") i++; row.push(cell); rows.push(row); row = []; cell = ""; }
+    else cell += c;
+  }
+  if (cell !== "" || row.length) { row.push(cell); rows.push(row); }
+  return rows.filter(r => r.some(x => x.trim() !== ""));
+}
+function heroFromName(n) { n = String(n || "").trim(); if (!n) return null; const i = HEROES.indexOf(n); return i >= 0 ? i : n; }
+function fromCsv(text) {
+  const rows = parseCsv(text);
+  if (!rows.length) throw new Error("CSVが空です。");
+  const head = rows[0].map(h => h.trim());
+  const col = name => head.indexOf(name);
+  const need = ["グループ", "役割", "名前"];
+  const miss = need.filter(n => col(n) < 0);
+  if (miss.length) throw new Error(`CSVの1行目に必要な列がありません: ${miss.join("、")}`);
+  const get = (r, n) => col(n) >= 0 ? (r[col(n)] ?? "").trim() : "";
+  const groups = new Map(); const unknown = new Set();
+  for (const r of rows.slice(1)) {
+    const gname = get(r, "グループ"); if (!gname) continue;
+    if (!groups.has(gname)) groups.set(gname, { id: uid(), name: gname, type: ["駐屯", "防衛"].includes(get(r, "種別")) ? "def" : "atk", leader: { m: emptyMember(), heroes: [null, null, null], ratio: [null, null, null] }, joiners: [] });
+    const g = groups.get(gname);
+    const m = { id: get(r, "ID"), name: get(r, "名前"), tag: get(r, "同盟") };
+    if (m.name && !m.id) { const hit = roster.find(x => x.name === m.name && (!m.tag || x.tag === m.tag)); if (hit) { m.id = hit.id; m.tag = hit.tag; } }
+    // 旧形式（英雄1〜3）のCSVも読めるようにする
+    const pick = (...names) => { for (const n of names) { const v = get(r, n); if (v) return v; } return ""; };
+    const hero = n => { const h = heroFromName(n); if (typeof h === "string") unknown.add(h); return h; };
+    const num = n => { const v = get(r, n); if (v === "") return null; const x = Math.round(Number(v)); return Number.isFinite(x) ? Math.max(0, Math.min(100, x)) : null; };
+    if (get(r, "役割") === "箱主") g.leader = { m, heroes: [pick("盾兵英雄", "英雄1"), pick("槍兵英雄", "英雄2"), pick("弓兵英雄", "英雄3")].map(hero), ratio: ["盾兵比率", "槍兵比率", "弓兵比率"].map(num) };
+    else { const lv = Number(get(r, "スキルLv")); g.joiners.push({ id: uid(), m, hero: hero(pick("先頭英雄", "英雄1")), lv: [1, 2, 3, 4, 5].includes(lv) ? lv : 5 }); }
+  }
+  if (!groups.size) throw new Error("CSVに読み込めるグループがありませんでした。");
+  return { state: { groups: [...groups.values()] }, unknown: [...unknown] };
+}
+document.getElementById("btnCsv").onclick = () => {
+  if (!state.groups.length) { toast("グループがありません"); return; }
+  // Excelで文字化けしないよう BOM 付き UTF-8 で書き出す
+  const blob = new Blob(["\uFEFF" + toCsv(state)], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  const d = new Date();
+  a.href = URL.createObjectURL(blob);
+  a.download = `SvS割り振り_${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}.csv`;
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  toast("CSVを保存しました");
+};
+document.getElementById("btnLoadCsv").onclick = () => document.getElementById("csvFile").click();
+document.getElementById("csvFile").onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+  try {
+    const buf = await f.arrayBuffer();
+    let text = new TextDecoder("utf-8").decode(buf);
+    if (text.includes("\uFFFD")) text = new TextDecoder("shift_jis").decode(buf); // Excelで上書き保存したShift_JISのCSVにも対応
+    const { state: s, unknown } = fromCsv(text);
+    if (state.groups.length && !confirm(`CSVの${s.groups.length}グループで、今の割り振りを置き換えますか？`)) return;
+    state = s; changed();
+    toast(`${s.groups.length}グループを読み込みました`);
+    if (unknown.length) alert(`一覧にない英雄名がありました（そのまま残しています）:\n${unknown.join("、")}`);
+  } catch (err) { alert(err.message); }
+};
+
+// ===== 起動 =====
+try { const saved = JSON.parse(localStorage.getItem(STORE_KEY) || "null"); if (saved?.groups) state = saved; } catch {}
+if (!state.groups.length) state.groups.push(newGroup(1));
+render();
+loadRoster().then(() => refresh());
+</script>
+</body>
+</html>

@@ -110,11 +110,68 @@
   .seg { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
   .seg button { font: inherit; font-size: 13px; padding: 5px 12px; border: 1px solid var(--rime); border-radius: 999px; background: var(--surface); color: var(--ink); cursor: pointer; }
   .seg button[aria-selected=true] { border-color: var(--ember); color: var(--ember); font-weight: 700; }
+  td.win .num, td.win { color: var(--ember); font-weight: 700; }
+  .chips .x { font: inherit; font-size: 13px; border: 0; background: none; color: var(--steel); cursor: pointer; margin-left: -6px; padding: 4px 6px; }
+  .cmpgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
+  .cmpcol { background: var(--surface); border: 1px solid var(--rime); border-radius: 6px; padding: 10px 12px; }
+  .cmpcol h3 { margin: 0 0 6px; font-family: "Saira Condensed", "Arial Narrow", sans-serif; font-size: 24px; }
+  ol.top10 { list-style: none; margin: 0; padding: 0; }
+  ol.top10 li { display: grid; grid-template-columns: 1.6em 1fr auto; gap: 8px; align-items: baseline; padding: 4px 0; border-bottom: 1px solid var(--rime); font-size: 14px; }
+  ol.top10 li:last-child { border-bottom: 0; }
+  ol.top10 .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  ol.top10 .sc { font-size: 16px; }
+  ol.top10 .rk { color: var(--steel); }
   label.check { font-size: 14px; display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
   .jp { display: inline-block; min-width: 3.2em; text-align: right; }
   .jp.hi { color: var(--ember); font-weight: 700; }
   .chips a { padding: 4px 12px; border: 1px solid var(--rime); border-radius: 999px; background: var(--surface); font-size: 14px; }
 
+  .tabbar { display: none; }
+  header.site nav.topnav a[aria-current=page] { color: var(--ember); font-weight: 700; }
+  input[type=search] { font-size: 16px; } /* iOS で入力時に拡大されないように */
+  @media (max-width: 640px) {
+    body { font-size: 14px; padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
+    header.site .in { padding: 10px 14px; gap: 10px; flex-wrap: nowrap; }
+    header.site .brand { font-size: 16px; white-space: nowrap; }
+    header.site nav.topnav { display: none; }
+    .tools.addrow { flex-wrap: nowrap; }
+    .tools.addrow input[type=search] { min-width: 0; }
+    .tools.addrow button { flex: 0 0 auto; }
+    header.site .updated { font-size: 11px; }
+    main { padding: 16px 14px 32px; }
+    h1 { font-size: 19px; }
+    h2 { font-size: 16px; margin: 24px 0 8px; }
+    .hs { display: none; }
+    th, td { padding: 7px 8px; }
+    td .num { font-size: 15px; }
+    .heat { min-width: 0; grid-template-columns: 1fr; }
+    .heat i { display: none; }
+    .heat > span { text-align: right; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .stats dd { font-size: 19px; }
+    .chips.scrollx, .seg { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; padding-bottom: 2px; }
+    .chips.scrollx a, .seg button { flex: 0 0 auto; white-space: nowrap; }
+    .seg button { padding: 8px 14px; font-size: 14px; }
+    .tools input[type=search] { width: 100%; flex: 1 1 auto; }
+    .grid2 { grid-template-columns: 1fr; gap: 0; }
+    .cmpgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .cmpcol { padding: 8px; }
+    .cmpcol h3 { font-size: 20px; }
+    ol.top10 li { grid-template-columns: 1.2em minmax(0, 1fr) auto; gap: 4px; font-size: 12px; padding: 5px 0; }
+    ol.top10 .nm .dim { display: none; }
+    ol.top10 .sc { font-size: 14px; }
+    .tabbar {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+      background: var(--surface); border-top: 1px solid var(--rime);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    .tabbar a[hidden] { display: none; }
+    .tabbar a { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 4px 9px; font-size: 11px; color: var(--steel); text-decoration: none; }
+    .tabbar a span { font-size: 20px; line-height: 1; }
+    .tabbar a[aria-current=page] { color: var(--ember); font-weight: 700; }
+    footer { padding-bottom: 16px; }
+  }
   footer { max-width: 1080px; margin: 0 auto; padding: 0 20px 40px; font-size: 12px; color: var(--steel); }
   @media (prefers-reduced-motion: no-preference) {
     .heat i b { transition: width .5s ease-out; }
@@ -125,11 +182,16 @@
 <header class="site">
   <div class="in">
     <a class="brand" href="#/">🧊 WoS 王国データ</a>
-    <nav><a href="#/">王国一覧</a></nav>
+    <nav class="topnav"><a href="#/" data-tab="list">王国一覧</a><a href="#/compare" data-tab="compare">地底探検比較</a><a href="#/" data-tab="mine" class="mine" hidden>マイ同盟</a></nav>
     <span class="updated" id="updated"></span>
   </div>
 </header>
 <main id="app"><p class="sub">読み込み中…</p></main>
+<nav class="tabbar" aria-label="メインメニュー">
+  <a href="#/" data-tab="list"><span aria-hidden="true">🧊</span>王国一覧</a>
+  <a href="#/compare" data-tab="compare"><span aria-hidden="true">⛏️</span>地底探検比較</a>
+  <a href="#/" data-tab="mine" class="mine" hidden><span aria-hidden="true">🔥</span>マイ同盟</a>
+</nav>
 <footer>
   データ出典: Whiteout Stats API（最大1時間前のデータを毎日取得）。Whiteout Survival は Century Games Pte. Ltd. の商標です。本サイトはファン制作で、同社とは関係ありません。
 </footer>
@@ -214,8 +276,8 @@ function sortableTable({ columns, rows, initialSort, pageSize = 100, filter }) {
     });
     const max = {};
     columns.filter(c => c.heat).forEach(c => max[c.key] = Math.max(0, ...list.map(r => Number(r[c.key]) || 0)));
-    const head = columns.map(c => `<th class="${c.r ? "r " : ""}${c.sort !== false ? "sortable" : ""}" ${c.sort !== false ? `tabindex="0" data-k="${c.key}"` : ""} ${c.key === sortKey ? `aria-sort="${dir === "asc" ? "ascending" : "descending"}"` : ""}>${c.label}</th>`).join("");
-    const body = list.slice(0, shown).map((r, i) => `<tr>${columns.map(c => `<td class="${c.r ? "r" : ""}">${c.cell(r, i, max[c.key])}</td>`).join("")}</tr>`).join("");
+    const head = columns.map(c => `<th class="${c.r ? "r " : ""}${c.hs ? "hs " : ""}${c.sort !== false ? "sortable" : ""}" ${c.sort !== false ? `tabindex="0" data-k="${c.key}"` : ""} ${c.key === sortKey ? `aria-sort="${dir === "asc" ? "ascending" : "descending"}"` : ""}>${c.label}</th>`).join("");
+    const body = list.slice(0, shown).map((r, i) => `<tr>${columns.map(c => `<td class="${c.r ? "r" : ""}${c.hs ? " hs" : ""}">${c.cell(r, i, max[c.key])}</td>`).join("")}</tr>`).join("");
     wrap.innerHTML = `<p class="count">${int(list.length)}件</p><div class="tablewrap"><table><thead><tr>${head}</tr></thead><tbody>${body || `<tr><td colspan="${columns.length}">該当なし</td></tr>`}</tbody></table></div>${list.length > shown ? `<button class="more">さらに${Math.min(pageSize, list.length - shown)}件表示</button>` : ""}`;
     wrap.querySelectorAll("th.sortable").forEach(th => {
       const go = () => { const k = th.dataset.k; dir = (k === sortKey && dir === "desc") ? "asc" : "desc"; sortKey = k; render(); };
@@ -242,7 +304,7 @@ async function viewStates() {
   app.innerHTML = `
     <h1>王国一覧</h1>
     <p class="sub">全${int(data.states.length)}王国。見出しを押すと並べ替えできます。</p>
-    ${watched.length ? `<h2>同盟ページがある同盟</h2><div class="chips">${watched.map(a => `<a href="#/alliance/${a.kid}/${encodeURIComponent(a.tag)}">[${esc(a.tag)}] ${esc(a.name)}<span class="dim"> #${a.kid}</span></a>`).join("")}</div>` : ""}
+    ${watched.length ? `<h2>同盟ページがある同盟</h2><div class="chips scrollx">${watched.map(a => `<a href="#/alliance/${a.kid}/${encodeURIComponent(a.tag)}">[${esc(a.tag)}] ${esc(a.name)}<span class="dim"> #${a.kid}</span></a>`).join("")}</div>` : ""}
     <h2>すべての王国</h2><div class="tools"><input type="search" id="q" placeholder="王国番号で検索（例：3345）" inputmode="numeric" aria-label="王国番号で検索">
       <label class="check"><input type="checkbox" id="jponly"> 日本人が多い王国だけ（日本語名 ${JP_TH}%以上）</label></div>
     <p class="dim">日本語名＝戦力上位100人のうち、名前にひらがな・カタカナを含む人の割合。ローマ字名は数えないため目安です。未取得の王国は「–」で、順次埋まります。</p>
@@ -255,12 +317,12 @@ async function viewStates() {
     columns: [
       { key: "kid", label: "王国", cell: r => `<a href="#/state/${r.kid}"><span class="num">#${r.kid}</span></a>` },
       { key: "_power", label: "総戦力", r: false, heat: true, cell: (r, i, m) => heat(r._power, m) },
-      { key: "avg_power", label: "平均戦力", r: true, cell: r => `<span class="num">${jp(r.avg_power)}</span>` },
+      { key: "avg_power", label: "平均戦力", r: true, hs: true, cell: r => `<span class="num">${jp(r.avg_power)}</span>` },
       { key: "player_count", label: "人数", r: true, cell: r => `<span class="num">${int(r.player_count)}</span>` },
-      { key: "alliance_count", label: "同盟数", r: true, cell: r => `<span class="num">${int(r.alliance_count)}</span>` },
-      { key: "power_gain_7d", label: "7日の戦力増", r: true, cell: r => `<span class="num">${jp(r.power_gain_7d)}</span>` },
-      { key: "jp", label: "日本語名", r: true, cell: r => jpBadge(r.jp) },
-      { key: "age_days", label: "開設から", r: true, cell: r => r.age_days != null ? `<span class="num">${int(r.age_days)}</span>日` : "–" },
+      { key: "alliance_count", label: "同盟数", r: true, hs: true, cell: r => `<span class="num">${int(r.alliance_count)}</span>` },
+      { key: "power_gain_7d", label: "7日の戦力増", r: true, hs: true, cell: r => `<span class="num">${jp(r.power_gain_7d)}</span>` },
+      { key: "jp", label: "日本語", r: true, cell: r => jpBadge(r.jp) },
+      { key: "age_days", label: "開設から", r: true, hs: true, cell: r => r.age_days != null ? `<span class="num">${int(r.age_days)}</span>日` : "–" },
     ],
   });
   q.oninput = () => table.rerender();
@@ -279,6 +341,7 @@ async function viewState(kid) {
   const stat = (label, v) => `<div><dt>${label}</dt><dd class="num">${v}</dd></div>`;
   app.innerHTML = `
     <p class="hero-num"><small>王国</small>${esc(kid)}</p>
+    <p class="sub"><a href="#/compare/${esc(kid)}">この王国を地底探検比較に入れる →</a></p>
     <p class="sub">${s.opened_on ? `開設 ${esc(s.opened_on)}` : ""}${s.age_days != null ? `（${int(s.age_days)}日目）` : ""}　${detail ? `更新 ${ago(detail.updated_at)}` : "詳細は順次取得中です"}</p>
     <dl class="stats">
       ${stat("総戦力", jp(totalPower(s)))}${stat("平均戦力", Number(s.avg_power) ? jp(s.avg_power) : "–")}${stat("戦力順位", s.power_rank ? int(s.power_rank) + "位" : "–")}
@@ -368,13 +431,95 @@ async function viewAlliance(kid, tag) {
       { key: "nick_name", label: "領主", cell: r => esc(r.nick_name) },
       { key: "alliance_rank", label: "階級", sortVal: r => Number(r.alliance_rank) || 0, cell: r => rankPill(r.alliance_rank_label, r.alliance_rank) },
       { key: "power", label: "戦力", heat: true, cell: (r, i, mx) => heat(r.power, mx) },
-      { key: "furnace_level", label: "溶鉱炉Lv", r: true, cell: r => `<span class="num">${r.furnace_level ?? "–"}</span>` },
-      { key: "kills", label: "撃破数", r: true, cell: r => `<span class="num">${jp(r.kills)}</span>` },
+      { key: "furnace_level", label: "炉Lv", r: true, cell: r => `<span class="num">${r.furnace_level ?? "–"}</span>` },
+      { key: "kills", label: "撃破数", r: true, hs: true, cell: r => `<span class="num">${jp(r.kills)}</span>` },
       { key: "_lab", label: "地底探検", r: true, cell: r => r._lab != null ? `<span class="num">${int(r._lab)}</span> <span class="dim">${r._labRank}位</span>` : `<span class="dim">圏外</span>` },
     ],
   });
   q.oninput = () => table.rerender();
   app.querySelector("#list").append(table);
+}
+
+// ---------- 地底探検の王国比較 ----------
+const MAX_COMPARE = 6;
+// エリアのスコアは「基準値 + (ステージ-1)×10 + 小ステージ」の形（例：10495 = 50-5）。
+// 実データの score と score_label の対応から割り出した式で、平均値をステージ表記に戻すのに使う
+function stageLabel(score) {
+  if (!score) return "–";
+  const n = Math.round(score) % 10000;
+  if (n <= 0) return "–";
+  const stage = Math.ceil(n / 10);
+  return `${stage}-${n - (stage - 1) * 10}`;
+}
+async function viewCompare(param) {
+  const fromHash = (param || "").split(",").map(x => x.trim()).filter(x => /^\d+$/.test(x));
+  const kids = [...new Set(fromHash)].slice(0, MAX_COMPARE);
+  let area = "labyrinth";
+  const details = await Promise.all(kids.map(k => load(`states/${k}.json`)));
+  const setKids = list => { location.hash = "#/compare/" + list.join(","); };
+
+  app.innerHTML = `
+    <h1>地底探検 王国比較</h1>
+    <p class="sub">王国番号を追加すると、地底探検の上位10人を並べて比べられます（最大${MAX_COMPARE}王国）。</p>
+    <div class="tools addrow">
+      <input type="search" id="addKid" placeholder="王国番号（例：3345）" inputmode="numeric" aria-label="比較する王国番号">
+      <button class="more" id="addBtn" style="margin:0">追加</button>
+    </div>
+    <div class="chips" id="kidChips">${kids.map(k => `<a href="#/state/${k}">#${k}</a><button class="x" data-k="${k}" aria-label="#${k} を外す">×</button>`).join("")}</div>
+    <div id="cmp"></div>`;
+  const input = app.querySelector("#addKid");
+  const add = () => {
+    const v = input.value.trim();
+    if (!/^\d+$/.test(v)) return;
+    if (kids.includes(v)) { input.value = ""; return; }
+    if (kids.length >= MAX_COMPARE) { alert(`比較できるのは${MAX_COMPARE}王国までです`); return; }
+    setKids([...kids, v]);
+  };
+  app.querySelector("#addBtn").onclick = add;
+  input.onkeydown = e => { if (e.key === "Enter") add(); };
+  app.querySelectorAll("#kidChips .x").forEach(b => b.onclick = () => setKids(kids.filter(k => k !== b.dataset.k)));
+
+  const box = app.querySelector("#cmp");
+  if (!kids.length) { box.innerHTML = `<p class="note">比較したい王国番号を2つ以上追加してください。</p>`; return; }
+
+  const draw = () => {
+    const isTotal = area === "labyrinth";
+    const fmt = r => isTotal ? int(r.score) : esc(r.score_label ?? stageLabel(r.score));
+    const cols = kids.map((k, i) => {
+      const d = details[i];
+      const rows = d ? boardRows(d.boards, area).slice(0, 10) : [];
+      const scores = rows.map(r => Number(r.score) || 0);
+      const avg = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+      return { k, d, rows, top: scores[0] || 0, tenth: scores.length >= 10 ? scores[9] : 0, avg, total: d?.state?.labyrinth,
+        topL: rows[0]?.score_label, tenthL: rows.length >= 10 ? rows[9]?.score_label : null };
+    });
+    const best = key => Math.max(0, ...cols.map(c => c[key] || 0));
+    const mark = (v, key) => v && v === best(key) ? " win" : "";
+    const show = v => !v ? "–" : isTotal ? int(Math.round(v)) : stageLabel(v);
+    box.innerHTML = `
+      <div class="seg" role="tablist">${LABY.map(([k, n]) => `<button role="tab" aria-selected="${k === area}" data-k="${k}">${n}</button>`).join("")}</div>
+      <h2>まとめ（${LABY.find(x => x[0] === area)[1]}）</h2>
+      <div class="tablewrap"><table>
+        <thead><tr><th>王国</th><th class="r">1位</th><th class="r">10位</th><th class="r">上位10平均</th>${isTotal ? `<th class="r">王国合計</th>` : ""}<th class="hs">更新</th></tr></thead>
+        <tbody>${cols.map(c => `<tr>
+          <td><a href="#/state/${c.k}"><span class="num">#${c.k}</span></a></td>
+          <td class="r${mark(c.top, "top")}"><span class="num">${isTotal ? show(c.top) : esc(c.topL ?? show(c.top))}</span></td>
+          <td class="r${mark(c.tenth, "tenth")}"><span class="num">${isTotal ? show(c.tenth) : esc(c.tenthL ?? show(c.tenth))}</span></td>
+          <td class="r${mark(c.avg, "avg")}"><span class="num">${isTotal ? show(c.avg) : "≈ " + show(c.avg)}</span></td>
+          ${isTotal ? `<td class="r${mark(c.total, "total")}"><span class="num">${c.total ? int(c.total) : "–"}</span></td>` : ""}
+          <td class="dim hs">${c.d ? ago(c.d.updated_at) : "未取得"}</td></tr>`).join("")}</tbody>
+      </table></div>
+      <p class="dim" style="margin-top:6px">10位＝上位10人に入るためのライン。オレンジ色はその項目で一番高い王国です。${isTotal ? "" : "エリアの平均はスコアから換算した目安のステージです。"}</p>
+      <h2>上位10人</h2>
+      <div class="cmpgrid">${cols.map(c => `<section class="cmpcol">
+        <h3><a href="#/state/${c.k}">#${c.k}</a></h3>
+        ${!c.d ? `<p class="note">この王国の詳細はまだ取得されていません。順次取得されます。</p>`
+          : !c.rows.length ? `<p class="note">ランキングデータがありません。</p>`
+          : `<ol class="top10">${c.rows.map((r, i) => `<li><span class="rk num">${r.rank ?? i + 1}</span><span class="nm">${esc(r.nick_name)}${r.alliance_abbr ? ` <span class="dim">[${esc(r.alliance_abbr)}]</span>` : ""}</span><span class="sc num">${fmt(r)}</span></li>`).join("")}</ol>`}
+      </section>`).join("")}</div>`;
+    box.querySelectorAll(".seg button").forEach(b => b.onclick = () => { area = b.dataset.k; draw(); });
+  };
+  draw();
 }
 
 // ---------- ルーティング ----------
@@ -383,11 +528,22 @@ async function route() {
   window.scrollTo(0, 0);
   if (parts[0] === "state" && parts[1]) await viewState(parts[1]);
   else if (parts[0] === "alliance" && parts[1] && parts[2]) await viewAlliance(parts[1], parts[2]);
+  else if (parts[0] === "compare") await viewCompare(parts[1]);
   else await viewStates();
-  const t = { state: `王国 #${parts[1]}`, alliance: `[${parts[2]}] 王国 #${parts[1]}` }[parts[0]];
+  const t = { state: `王国 #${parts[1]}`, alliance: `[${parts[2]}] 王国 #${parts[1]}`, compare: "地底探検 王国比較" }[parts[0]];
   document.title = (t ? t + " | " : "") + "WoS 王国データ";
 }
-load("meta.json").then(m => { if (m?.updated_at) document.getElementById("updated").textContent = "最終更新 " + ago(m.updated_at); });
+load("meta.json").then(m => {
+  if (m?.updated_at) document.getElementById("updated").textContent = "最終更新 " + ago(m.updated_at);
+  const a = m?.watch_alliances?.[0];
+  if (a) document.querySelectorAll("a.mine").forEach(el => { el.href = `#/alliance/${a.kid}/${encodeURIComponent(a.tag)}`; el.hidden = false; el.lastChild.textContent = `[${a.tag}]`; });
+});
+function markTab() {
+  const h = location.hash;
+  const tab = h.startsWith("#/compare") ? "compare" : h.startsWith("#/alliance") ? "mine" : (h === "" || h === "#/" || h.startsWith("#/state")) ? "list" : "";
+  document.querySelectorAll("[data-tab]").forEach(el => el.setAttribute("aria-current", el.dataset.tab === tab ? "page" : "false"));
+}
+addEventListener("hashchange", markTab); markTab();
 addEventListener("hashchange", route);
 route();
 </script>

@@ -64,8 +64,8 @@
   }
   .hero-num small { font-family: "Zen Kaku Gothic New", sans-serif; font-size: 18px; font-weight: 500; color: var(--steel); margin-right: 8px; letter-spacing: 0; }
 
-  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--rime); border: 1px solid var(--rime); border-radius: 6px; overflow: hidden; margin: 18px 0 8px; }
-  .stats div { background: var(--surface); padding: 10px 14px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0; background: var(--surface); border: 1px solid var(--rime); border-radius: 6px; overflow: hidden; margin: 18px 0 8px; }
+  .stats div { padding: 10px 14px; box-shadow: 1px 0 0 var(--rime), 0 1px 0 var(--rime); }
   .stats dt { font-size: 12px; color: var(--steel); }
   .stats dd { margin: 0; font-size: 22px; font-weight: 700; }
 
@@ -106,6 +106,10 @@
   .note { font-size: 13px; color: var(--steel); padding: 14px 16px; border: 1px dashed var(--rime); border-radius: 6px; background: var(--surface); }
   .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 8px; }
   .dim { color: var(--steel); font-size: 12px; }
+  p.dim { margin: -4px 0 12px; }
+  label.check { font-size: 14px; display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+  .jp { display: inline-block; min-width: 3.2em; text-align: right; }
+  .jp.hi { color: var(--ember); font-weight: 700; }
   .chips a { padding: 4px 12px; border: 1px solid var(--rime); border-radius: 999px; background: var(--surface); font-size: 14px; }
 
   footer { max-width: 1080px; margin: 0 auto; padding: 0 20px 40px; font-size: 12px; color: var(--steel); }
@@ -158,6 +162,11 @@ function ago(iso) {
 function heat(v, max) {
   const pct = max > 0 && v > 0 ? Math.max(2, Math.round(v / max * 100)) : 0;
   return `<span class="heat"><i><b style="width:${pct}%"></b></i><span class="num">${jp(v)}</span></span>`;
+}
+const JP_TH = 30;
+function jpBadge(v) {
+  if (v == null) return "–";
+  return `<span class="num jp ${v >= JP_TH ? "hi" : ""}">${v}%</span>`;
 }
 function rankPill(label, rank) {
   const t = label || (rank ? "R" + rank : "");
@@ -212,7 +221,9 @@ function sortableTable({ columns, rows, initialSort, pageSize = 100, filter }) {
 
 // ---------- 王国一覧 ----------
 async function viewStates() {
-  const [data, idx] = await Promise.all([load("states.json"), load("alliances/index.json")]);
+  const [data, idx, lang] = await Promise.all([load("states.json"), load("alliances/index.json"), load("lang.json")]);
+  const L = lang?.states || {};
+  data.states.forEach(s => { const x = L[s.kid]; s.jp = x ? x.jp : null; });
   if (!data) {
     app.innerHTML = `<h1>王国一覧</h1><p class="note">まだデータがありません。GitHub の Actions タブで「データ更新とサイト公開」を手動実行すると、初回のデータが入ります。</p>`;
     return;
@@ -222,13 +233,15 @@ async function viewStates() {
     <h1>王国一覧</h1>
     <p class="sub">全${int(data.states.length)}王国。見出しを押すと並べ替えできます。</p>
     ${watched.length ? `<h2>同盟ページがある同盟</h2><div class="chips">${watched.map(a => `<a href="#/alliance/${a.kid}/${encodeURIComponent(a.tag)}">[${esc(a.tag)}] ${esc(a.name)}<span class="dim"> #${a.kid}</span></a>`).join("")}</div>` : ""}
-    <h2>すべての王国</h2><div class="tools"><input type="search" id="q" placeholder="王国番号で検索（例：3345）" inputmode="numeric" aria-label="王国番号で検索"></div>
+    <h2>すべての王国</h2><div class="tools"><input type="search" id="q" placeholder="王国番号で検索（例：3345）" inputmode="numeric" aria-label="王国番号で検索">
+      <label class="check"><input type="checkbox" id="jponly"> 日本人が多い王国だけ（日本語名 ${JP_TH}%以上）</label></div>
+    <p class="dim">日本語名＝戦力上位100人のうち、名前にひらがな・カタカナを含む人の割合。ローマ字名は数えないため目安です。未取得の王国は「–」で、順次埋まります。</p>
     <div id="list"></div>`;
-  const q = app.querySelector("#q");
+  const q = app.querySelector("#q"), jpOnly = app.querySelector("#jponly");
   const table = sortableTable({
     rows: data.states,
     initialSort: { key: "power", dir: "desc" },
-    filter: () => { const v = q.value.trim(); return r => !v || String(r.kid).startsWith(v); },
+    filter: () => { const v = q.value.trim(), j = jpOnly.checked; return r => (!v || String(r.kid).startsWith(v)) && (!j || (r.jp ?? -1) >= JP_TH); },
     columns: [
       { key: "kid", label: "王国", cell: r => `<a href="#/state/${r.kid}"><span class="num">#${r.kid}</span></a>` },
       { key: "power", label: "総戦力", r: false, heat: true, cell: (r, i, m) => heat(r.power, m) },
@@ -236,17 +249,20 @@ async function viewStates() {
       { key: "player_count", label: "人数", r: true, cell: r => `<span class="num">${int(r.player_count)}</span>` },
       { key: "alliance_count", label: "同盟数", r: true, cell: r => `<span class="num">${int(r.alliance_count)}</span>` },
       { key: "power_gain_7d", label: "7日の戦力増", r: true, cell: r => `<span class="num">${jp(r.power_gain_7d)}</span>` },
+      { key: "jp", label: "日本語名", r: true, cell: r => jpBadge(r.jp) },
       { key: "age_days", label: "開設から", r: true, cell: r => r.age_days != null ? `<span class="num">${int(r.age_days)}</span>日` : "–" },
     ],
   });
   q.oninput = () => table.rerender();
+  jpOnly.onchange = () => table.rerender();
   q.onkeydown = e => { if (e.key === "Enter" && /^\d+$/.test(q.value.trim())) location.hash = `#/state/${q.value.trim()}`; };
   app.querySelector("#list").append(table);
 }
 
 // ---------- 王国ページ ----------
 async function viewState(kid) {
-  const [detail, list, idx] = await Promise.all([load(`states/${kid}.json`), load("states.json"), load("alliances/index.json")]);
+  const [detail, list, idx, lang] = await Promise.all([load(`states/${kid}.json`), load("states.json"), load("alliances/index.json"), load("lang.json")]);
+  const jpStat = lang?.states?.[kid];
   const s = detail?.state || list?.states?.find(x => String(x.kid) === String(kid));
   if (!s) { app.innerHTML = `<p class="note">王国 #${esc(kid)} のデータはまだありません。王国番号を確認するか、次回の更新をお待ちください。<br><a href="#/">王国一覧に戻る</a></p>`; return; }
   const have = new Set((idx?.alliances || []).filter(a => String(a.kid) === String(kid)).map(a => a.tag));
@@ -257,6 +273,7 @@ async function viewState(kid) {
     <dl class="stats">
       ${stat("総戦力", jp(s.power))}${stat("平均戦力", jp(s.avg_power))}${stat("戦力順位", s.power_rank ? int(s.power_rank) + "位" : "–")}
       ${stat("人数", int(s.player_count))}${stat("同盟数", int(s.alliance_count))}${stat("7日の戦力増", jp(s.power_gain_7d))}
+      ${stat("日本語名（上位" + (jpStat?.n ?? 100) + "人）", jpStat ? jpStat.jp + "%" : "–")}
     </dl>
     <div class="grid2"><section id="al"></section><section id="pl"></section></div>`;
   if (!detail) return;

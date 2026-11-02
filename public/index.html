@@ -107,6 +107,9 @@
   .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 8px; }
   .dim { color: var(--steel); font-size: 12px; }
   p.dim { margin: -4px 0 12px; }
+  .seg { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+  .seg button { font: inherit; font-size: 13px; padding: 5px 12px; border: 1px solid var(--rime); border-radius: 999px; background: var(--surface); color: var(--ink); cursor: pointer; }
+  .seg button[aria-selected=true] { border-color: var(--ember); color: var(--ember); font-weight: 700; }
   label.check { font-size: 14px; display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
   .jp { display: inline-block; min-width: 3.2em; text-align: right; }
   .jp.hi { color: var(--ember); font-weight: 700; }
@@ -164,6 +167,13 @@ function heat(v, max) {
   return `<span class="heat"><i><b style="width:${pct}%"></b></i><span class="num">${jp(v)}</span></span>`;
 }
 const JP_TH = 30;
+// 総戦力：power が 0 / 未集計のときは領主戦力の合計（gov_power）を使う
+const totalPower = s => Number(s?.power) || Number(s?.gov_power) || null;
+// 地底探検（The Labyrinth）。エリア名はアルテマの地底探検ページの表記
+const LABY = [
+  ["labyrinth", "総合"], ["land_of_heroes", "英雄の地"], ["cave_of_monsters", "獣の洞窟"], ["charm_mine", "宝石鉱山"],
+  ["research_center", "地下科学研究所"], ["gear_forge", "装備の鍛冶炉"], ["gaia_heart", "大地の心"],
+];
 function jpBadge(v) {
   if (v == null) return "–";
   return `<span class="num jp ${v >= JP_TH ? "hi" : ""}">${v}%</span>`;
@@ -223,7 +233,7 @@ function sortableTable({ columns, rows, initialSort, pageSize = 100, filter }) {
 async function viewStates() {
   const [data, idx, lang] = await Promise.all([load("states.json"), load("alliances/index.json"), load("lang.json")]);
   const L = lang?.states || {};
-  data.states.forEach(s => { const x = L[s.kid]; s.jp = x ? x.jp : null; });
+  data.states.forEach(s => { const x = L[s.kid]; s.jp = x ? x.jp : null; s._power = totalPower(s); });
   if (!data) {
     app.innerHTML = `<h1>王国一覧</h1><p class="note">まだデータがありません。GitHub の Actions タブで「データ更新とサイト公開」を手動実行すると、初回のデータが入ります。</p>`;
     return;
@@ -240,11 +250,11 @@ async function viewStates() {
   const q = app.querySelector("#q"), jpOnly = app.querySelector("#jponly");
   const table = sortableTable({
     rows: data.states,
-    initialSort: { key: "power", dir: "desc" },
+    initialSort: { key: "_power", dir: "desc" },
     filter: () => { const v = q.value.trim(), j = jpOnly.checked; return r => (!v || String(r.kid).startsWith(v)) && (!j || (r.jp ?? -1) >= JP_TH); },
     columns: [
       { key: "kid", label: "王国", cell: r => `<a href="#/state/${r.kid}"><span class="num">#${r.kid}</span></a>` },
-      { key: "power", label: "総戦力", r: false, heat: true, cell: (r, i, m) => heat(r.power, m) },
+      { key: "_power", label: "総戦力", r: false, heat: true, cell: (r, i, m) => heat(r._power, m) },
       { key: "avg_power", label: "平均戦力", r: true, cell: r => `<span class="num">${jp(r.avg_power)}</span>` },
       { key: "player_count", label: "人数", r: true, cell: r => `<span class="num">${int(r.player_count)}</span>` },
       { key: "alliance_count", label: "同盟数", r: true, cell: r => `<span class="num">${int(r.alliance_count)}</span>` },
@@ -271,11 +281,13 @@ async function viewState(kid) {
     <p class="hero-num"><small>王国</small>${esc(kid)}</p>
     <p class="sub">${s.opened_on ? `開設 ${esc(s.opened_on)}` : ""}${s.age_days != null ? `（${int(s.age_days)}日目）` : ""}　${detail ? `更新 ${ago(detail.updated_at)}` : "詳細は順次取得中です"}</p>
     <dl class="stats">
-      ${stat("総戦力", jp(s.power))}${stat("平均戦力", jp(s.avg_power))}${stat("戦力順位", s.power_rank ? int(s.power_rank) + "位" : "–")}
-      ${stat("人数", int(s.player_count))}${stat("同盟数", int(s.alliance_count))}${stat("7日の戦力増", jp(s.power_gain_7d))}
+      ${stat("総戦力", jp(totalPower(s)))}${stat("平均戦力", Number(s.avg_power) ? jp(s.avg_power) : "–")}${stat("戦力順位", s.power_rank ? int(s.power_rank) + "位" : "–")}
+      ${stat("人数", int(s.player_count))}${stat("同盟数", int(s.alliance_count))}${stat("7日の戦力増", Number(s.power_gain_7d) ? jp(s.power_gain_7d) : "–")}
+      ${stat("地底探検（合計）", s.labyrinth ? int(s.labyrinth) : "–")}
       ${stat("日本語名（上位" + (jpStat?.n ?? 100) + "人）", jpStat ? jpStat.jp + "%" : "–")}
     </dl>
-    <div class="grid2"><section id="al"></section><section id="pl"></section></div>`;
+    <div class="grid2"><section id="al"></section><section id="pl"></section></div>
+    <section id="lab"></section>`;
   if (!detail) return;
   const alliances = boardRows(detail.boards, "alliance_power");
   const players = boardRows(detail.boards, "personal_power");
@@ -298,14 +310,42 @@ async function viewState(kid) {
       { key: "score", label: "戦力", heat: true, cell: (r, i, m) => heat(r.score, m) },
     ],
   }) : Object.assign(document.createElement("p"), { className: "note", textContent: "ランキングデータがありません。" }));
+  renderLabyrinth(app.querySelector("#lab"), detail.boards);
+}
+
+// 地底探検ランキング（総合と6エリアを切り替え）
+function renderLabyrinth(el, boards) {
+  const tabs = LABY.filter(([k]) => boardRows(boards, k).length);
+  if (!tabs.length) return;
+  let cur = tabs[0][0];
+  const draw = () => {
+    const rows = boardRows(boards, cur).map((r, i) => ({ ...r, _rank: r.rank ?? i + 1 }));
+    el.innerHTML = `<h2>地底探検ランキング</h2>
+      <div class="seg" role="tablist">${tabs.map(([k, n]) => `<button role="tab" aria-selected="${k === cur}" data-k="${k}">${n}</button>`).join("")}</div>`;
+    el.append(sortableTable({
+      rows, initialSort: { key: "_rank", dir: "asc" }, pageSize: 20,
+      columns: [
+        { key: "_rank", label: "順位", cell: r => `<span class="num">${r._rank}</span>` },
+        { key: "nick_name", label: "領主", cell: r => esc(r.nick_name) },
+        { key: "alliance_abbr", label: "同盟", cell: r => r.alliance_abbr ? `[${esc(r.alliance_abbr)}]` : "–" },
+        cur === "labyrinth"
+          ? { key: "score", label: "スコア", r: true, cell: r => `<span class="num">${int(r.score)}</span>` }
+          : { key: "score", label: "到達ステージ", r: true, cell: r => `<span class="num">${esc(r.score_label ?? r.score)}</span>` },
+      ],
+    }));
+    el.querySelectorAll(".seg button").forEach(b => b.onclick = () => { cur = b.dataset.k; draw(); });
+  };
+  draw();
 }
 
 // ---------- 同盟ページ ----------
 async function viewAlliance(kid, tag) {
-  const d = await load(`alliances/${kid}/${safeTag(tag)}.json`);
+  const [d, sd] = await Promise.all([load(`alliances/${kid}/${safeTag(tag)}.json`), load(`states/${kid}.json`)]);
+  const labRows = boardRows(sd?.boards, "labyrinth");
+  const lab = new Map(labRows.map((r, i) => [String(r.uid), { score: r.score, rank: r.rank ?? i + 1 }]));
   if (!d) { app.innerHTML = `<p class="note">同盟 [${esc(tag)}]（王国 #${esc(kid)}）のデータはまだありません。config.json の watch_alliances に追加すると、次回の更新から表示されます。<br><a href="#/state/${esc(kid)}">王国 #${esc(kid)} に戻る</a></p>`; return; }
   const a = d.alliance || {};
-  const m = d.members || [];
+  const m = (d.members || []).map(x => { const L = lab.get(String(x.uid)); return { ...x, _lab: L ? L.score : null, _labRank: L ? L.rank : null }; });
   const furnaceMax = Math.max(0, ...m.map(x => Number(x.furnace_level) || 0));
   const stat = (label, v) => `<div><dt>${label}</dt><dd class="num">${v}</dd></div>`;
   app.innerHTML = `
@@ -317,6 +357,7 @@ async function viewAlliance(kid, tag) {
       ${stat("メンバー", int(a.count ?? m.length))}${stat("最高溶鉱炉Lv", furnaceMax || "–")}
     </dl>
     <h2>メンバー</h2>
+    ${labRows.length ? `<p class="dim">地底探検は王国内の上位${labRows.length}人の記録です。それより下の人は「圏外」と表示されます。</p>` : ""}
     <div class="tools"><input type="search" id="q" placeholder="名前で検索" aria-label="メンバー名で検索"></div>
     <div id="list"></div>`;
   const q = app.querySelector("#q");
@@ -329,6 +370,7 @@ async function viewAlliance(kid, tag) {
       { key: "power", label: "戦力", heat: true, cell: (r, i, mx) => heat(r.power, mx) },
       { key: "furnace_level", label: "溶鉱炉Lv", r: true, cell: r => `<span class="num">${r.furnace_level ?? "–"}</span>` },
       { key: "kills", label: "撃破数", r: true, cell: r => `<span class="num">${jp(r.kills)}</span>` },
+      { key: "_lab", label: "地底探検", r: true, cell: r => r._lab != null ? `<span class="num">${int(r._lab)}</span> <span class="dim">${r._labRank}位</span>` : `<span class="dim">圏外</span>` },
     ],
   });
   q.oninput = () => table.rerender();

@@ -81,10 +81,50 @@ async function readJSON(rel, fallback) {
 }
 const safeTag = (tag) => encodeURIComponent(tag).replace(/%/g, "_");
 
+// ---------- 保存容量を抑えるため、サイトで使う項目だけ残す ----------
+// API の王国詳細は 1 件 600KB 前後あり、全王国分だと GitHub Pages の上限(1GB)を超えるため
+const KEEP_BOARDS = new Set([
+  "alliance_power", "personal_power",
+  "labyrinth", "land_of_heroes", "cave_of_monsters", "charm_mine", "research_center", "gear_forge", "gaia_heart",
+]);
+const ALLIANCE_ROW = ["rank", "abbr", "name", "score", "member_count", "leader_name"];
+const PLAYER_ROW = ["rank", "uid", "nick_name", "alliance_abbr", "score", "score_label"];
+function trimBoards(boards) {
+  if (!boards) return null;
+  const list = Array.isArray(boards) ? boards : Object.entries(boards).map(([key, v]) => ({ key, ...(Array.isArray(v) ? { rows: v } : v) }));
+  return list
+    .filter((b) => KEEP_BOARDS.has(b.key))
+    .map((b) => ({
+      key: b.key,
+      rows: firstArray(b, ["rows", "entries", "items", "ranks"]).map((r) => pick(r, b.kind === "alliance" || b.key === "alliance_power" ? ALLIANCE_ROW : PLAYER_ROW)),
+    }))
+    .filter((b) => b.rows.length);
+}
+function trimState(state) {
+  const { boards, board_totals, ...rest } = state || {};
+  return rest;
+}
+
 // ---------- 本体 ----------
 const now = new Date().toISOString();
 const meta = await readJSON("meta.json", {});
 const log = [];
+
+// 以前の版で保存した大きいファイルを、必要な項目だけに縮める（API 呼び出しなし）
+{
+  const dir = path.join(DATA, "states");
+  let shrunk = 0;
+  for (const f of await fs.readdir(dir).catch(() => [])) {
+    if (!f.endsWith(".json")) continue;
+    const file = path.join(dir, f);
+    const text = await fs.readFile(file, "utf8");
+    if (!text.includes("avatar_url") && !text.includes("board_totals")) continue;
+    const d = JSON.parse(text);
+    await fs.writeFile(file, JSON.stringify({ updated_at: d.updated_at, state: trimState(d.state), boards: trimBoards(d.boards) }));
+    shrunk++;
+  }
+  if (shrunk) console.log(`既存の王国ファイルを縮小: ${shrunk}件`);
+}
 
 const usage = await api("/usage", { counted: false });
 const remaining = usage?.daily?.remaining ?? 5000;
@@ -131,7 +171,7 @@ try {
     if (!body) return null;
     const state = body.state ?? body;
     const boards = body.boards ?? state.boards ?? null;
-    await writeJSON(`states/${kid}.json`, { updated_at: now, state: { ...state, boards: undefined }, boards });
+    await writeJSON(`states/${kid}.json`, { updated_at: now, state: trimState(state), boards: trimBoards(boards) });
     const jp = japaneseShare(boardRows(boards, "personal_power").map((r) => r.nick_name));
     if (jp || state.banner_url) lang.states[kid] = { ...(jp || {}), banner: state.banner_url ?? null, at: now.slice(0, 10) };
     detailDone++;
@@ -157,7 +197,10 @@ try {
       const body = await api(`/alliances/${kid}/${encodeURIComponent(tag)}?include=info,roster`);
       if (!body) { console.warn(`同盟が見つかりません: ${kid} ${tag}`); continue; }
       const alliance = body.alliance ?? body.info ?? body;
-      const members = firstArray(body.members ?? body.roster ?? body, ["members", "roster"]);
+      const members = firstArray(body.members ?? body.roster ?? body, ["members", "roster"]).map((m) => {
+      const { avatar_url, ...rest } = m || {};
+      return rest;
+    });
       await writeJSON(`alliances/${kid}/${safeTag(tag)}.json`, { updated_at: now, alliance: { ...alliance, members: undefined }, members });
       const entry = { kid, tag, name: alliance.name ?? tag, power: alliance.power ?? null, count: alliance.count ?? members.length, updated_at: now };
       allianceIndex.alliances = allianceIndex.alliances.filter((a) => !(a.kid === kid && a.tag === tag));
@@ -216,6 +259,8 @@ if (globalThis.__lang) {
   log.push(`旗(banner_url)が入っている王国: ${withBanner}件`);
 }
 meta.updated_at = now;
+meta.watch_states = config.watch_states || [];
+meta.watch_alliances = config.watch_alliances || [];
 meta.api_calls = calls;
 meta.log = log;
 await writeJSON("meta.json", meta);

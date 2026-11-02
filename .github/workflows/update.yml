@@ -30,21 +30,41 @@ jobs:
         with:
           node-version: 22
 
+      # データはリポジトリに保存せず、Actions のキャッシュで前回分を引き継ぐ
+      - name: 前回のデータを復元
+        uses: actions/cache/restore@v4
+        with:
+          path: public/data
+          key: wos-data-${{ github.run_id }}
+          restore-keys: wos-data-
+
       - name: データ取得
         if: github.event_name != 'push'
         env:
           WOS_API_KEY: ${{ secrets.WOS_API_KEY }}
         run: node scripts/fetch-data.mjs
 
-      - name: データを保存（コミット）
+      - name: データを保存（キャッシュ）
+        if: always() && github.event_name != 'push'
+        uses: actions/cache/save@v4
+        with:
+          path: public/data
+          key: wos-data-${{ github.run_id }}
+
+      # 以前の版でリポジトリに入れたデータを、今後は管理対象から外す（初回のみ実行される）
+      - name: リポジトリからデータを外す
         if: github.event_name != 'push'
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/data
-          git diff --cached --quiet || git commit -m "データ更新 $(date -u +%Y-%m-%d)"
-          git pull --rebase origin main
-          git push
+          if git ls-files public/data | grep -q .; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git rm -r -q --cached public/data
+            grep -qx "public/data/" .gitignore 2>/dev/null || echo "public/data/" >> .gitignore
+            git add .gitignore
+            git commit -m "データをリポジトリの管理対象から外す（キャッシュ方式へ移行）"
+            git pull --rebase origin main
+            git push
+          fi
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

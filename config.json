@@ -4,7 +4,7 @@
     { "kid": 3345, "tag": "MOG" }
   ],
   "top_alliances_per_watched_state": 10,
-  "detail_per_run": 1200,
+  "detail_per_run": 4500,
   "list_page_size": 100,
   "daily_safety_margin": 300
 }

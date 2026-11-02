@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>WoS 王国データ</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧊</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #EAF0F5;
+    --surface: #F7FAFC;
+    --ink: #16273A;
+    --steel: #586D82;
+    --rime: #C9D5E1;
+    --ember: #D47A22;
+    --ember-soft: #F3D2AE;
+    --link: #1F5E99;
+    color-scheme: light;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0E1A26; --surface: #152536; --ink: #E2EBF3; --steel: #91A5B9;
+      --rime: #263A50; --ember: #F09A46; --ember-soft: #5A3A1C; --link: #8CC2F2;
+      color-scheme: dark;
+    }
+  }
+  *, *::before, *::after { box-sizing: inherit; }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", sans-serif;
+    font-size: 15px; line-height: 1.6;
+  }
+  a { color: var(--link); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  a:focus-visible, button:focus-visible, input:focus-visible, th:focus-visible {
+    outline: 2px solid var(--ember); outline-offset: 2px; border-radius: 3px;
+  }
+  .num { font-family: "Saira Condensed", "Arial Narrow", sans-serif; font-variant-numeric: tabular-nums; letter-spacing: .01em; }
+
+  header.site {
+    border-bottom: 1px solid var(--rime); background: var(--surface);
+  }
+  header.site .in { max-width: 1080px; margin: 0 auto; padding: 12px 20px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+  header.site .brand { font-weight: 700; font-size: 17px; color: var(--ink); }
+  header.site nav { display: flex; gap: 16px; font-size: 14px; }
+  header.site .updated { margin-left: auto; font-size: 12px; color: var(--steel); }
+
+  main { max-width: 1080px; margin: 0 auto; padding: 24px 20px 64px; }
+  h1 { font-size: 22px; margin: 0 0 4px; line-height: 1.35; }
+  h2 { font-size: 17px; margin: 32px 0 10px; }
+  .sub { color: var(--steel); font-size: 13px; margin: 0 0 18px; }
+
+  .hero-num {
+    font-family: "Saira Condensed", "Arial Narrow", sans-serif; font-weight: 700;
+    font-size: clamp(64px, 14vw, 120px); line-height: .9; letter-spacing: -.01em;
+    color: var(--ink); margin: 0;
+  }
+  .hero-num small { font-family: "Zen Kaku Gothic New", sans-serif; font-size: 18px; font-weight: 500; color: var(--steel); margin-right: 8px; letter-spacing: 0; }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--rime); border: 1px solid var(--rime); border-radius: 6px; overflow: hidden; margin: 18px 0 8px; }
+  .stats div { background: var(--surface); padding: 10px 14px; }
+  .stats dt { font-size: 12px; color: var(--steel); }
+  .stats dd { margin: 0; font-size: 22px; font-weight: 700; }
+
+  .tools { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 0 0 12px; }
+  input[type=search] {
+    font: inherit; padding: 8px 12px; border: 1px solid var(--rime); border-radius: 6px;
+    background: var(--surface); color: var(--ink); width: min(280px, 100%);
+  }
+  .count { font-size: 13px; color: var(--steel); }
+  button.more {
+    font: inherit; font-size: 14px; padding: 8px 18px; border: 1px solid var(--rime); border-radius: 6px;
+    background: var(--surface); color: var(--ink); cursor: pointer; margin-top: 12px;
+  }
+
+  .tablewrap { overflow-x: auto; border: 1px solid var(--rime); border-radius: 6px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { padding: 8px 12px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--rime); }
+  tbody tr:last-child td { border-bottom: 0; }
+  th { font-size: 12px; font-weight: 500; color: var(--steel); background: var(--bg); position: sticky; top: 0; }
+  th.sortable { cursor: pointer; user-select: none; }
+  th.sortable[aria-sort=descending]::after { content: " ▼"; font-size: 9px; }
+  th.sortable[aria-sort=ascending]::after { content: " ▲"; font-size: 9px; }
+  td.r, th.r { text-align: right; }
+  td .num { font-size: 16px; }
+  tbody tr:hover { background: color-mix(in srgb, var(--ember-soft) 25%, transparent); }
+
+  /* 戦力の「熱」バー：その表の最大値に対する割合 */
+  .heat { display: grid; grid-template-columns: 1fr 5.2em; align-items: center; gap: 10px; min-width: 170px; }
+  .heat i { display: block; height: 6px; border-radius: 3px; background: var(--rime); overflow: hidden; }
+  .heat > span { text-align: right; }
+  .heat i b { display: block; height: 100%; background: linear-gradient(90deg, var(--ember-soft), var(--ember)); }
+
+  .rankpill { display: inline-block; min-width: 30px; text-align: center; font-size: 12px; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--rime); }
+  .rankpill.r5 { border-color: var(--ember); color: var(--ember); font-weight: 700; }
+  .rankpill.r4 { border-color: var(--steel); }
+
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; }
+  .note { font-size: 13px; color: var(--steel); padding: 14px 16px; border: 1px dashed var(--rime); border-radius: 6px; background: var(--surface); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 8px; }
+  .dim { color: var(--steel); font-size: 12px; }
+  .chips a { padding: 4px 12px; border: 1px solid var(--rime); border-radius: 999px; background: var(--surface); font-size: 14px; }
+
+  footer { max-width: 1080px; margin: 0 auto; padding: 0 20px 40px; font-size: 12px; color: var(--steel); }
+  @media (prefers-reduced-motion: no-preference) {
+    .heat i b { transition: width .5s ease-out; }
+  }
+</style>
+</head>
+<body>
+<header class="site">
+  <div class="in">
+    <a class="brand" href="#/">🧊 WoS 王国データ</a>
+    <nav><a href="#/">王国一覧</a></nav>
+    <span class="updated" id="updated"></span>
+  </div>
+</header>
+<main id="app"><p class="sub">読み込み中…</p></main>
+<footer>
+  データ出典: Whiteout Stats API（最大1時間前のデータを毎日取得）。Whiteout Survival は Century Games Pte. Ltd. の商標です。本サイトはファン制作で、同社とは関係ありません。
+</footer>
+
+<script>
+const app = document.getElementById("app");
+const cache = new Map();
+
+async function load(rel) {
+  if (cache.has(rel)) return cache.get(rel);
+  const p = fetch("data/" + rel, { cache: "no-cache" }).then(r => r.ok ? r.json() : null).catch(() => null);
+  cache.set(rel, p);
+  return p;
+}
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const safeTag = tag => encodeURIComponent(tag).replace(/%/g, "_");
+
+// 数値を「億・万」で表示
+function jp(n) {
+  if (n == null || n === "" || isNaN(n)) return "–";
+  n = Number(n);
+  const a = Math.abs(n);
+  if (a >= 1e8) return Number((n / 1e8).toFixed(a >= 1e10 ? 0 : 2)).toLocaleString("ja-JP") + "億";
+  if (a >= 1e4) return Number((n / 1e4).toFixed(a >= 1e6 ? 0 : 1)).toLocaleString("ja-JP") + "万";
+  return n.toLocaleString("ja-JP");
+}
+const int = n => (n == null || isNaN(n)) ? "–" : Number(n).toLocaleString("ja-JP");
+function ago(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return d.toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+function heat(v, max) {
+  const pct = max > 0 && v > 0 ? Math.max(2, Math.round(v / max * 100)) : 0;
+  return `<span class="heat"><i><b style="width:${pct}%"></b></i><span class="num">${jp(v)}</span></span>`;
+}
+function rankPill(label, rank) {
+  const t = label || (rank ? "R" + rank : "");
+  const cls = /5/.test(t) ? "r5" : /4/.test(t) ? "r4" : "";
+  return t ? `<span class="rankpill ${cls}">${esc(t)}</span>` : "";
+}
+function firstArray(obj, keys) {
+  if (Array.isArray(obj)) return obj;
+  if (!obj || typeof obj !== "object") return [];
+  for (const k of keys) if (Array.isArray(obj[k])) return obj[k];
+  return [];
+}
+function boardRows(boards, key) {
+  if (!boards) return [];
+  if (Array.isArray(boards)) {
+    const b = boards.find(x => [x.board, x.key, x.type, x.slug].includes(key));
+    return b ? firstArray(b, ["rows", "entries", "items", "ranks"]) : [];
+  }
+  return firstArray(boards[key], ["rows", "entries", "items", "ranks"]);
+}
+
+// 並べ替えできる表
+function sortableTable({ columns, rows, initialSort, pageSize = 100, filter }) {
+  let sortKey = initialSort.key, dir = initialSort.dir, shown = pageSize;
+  const wrap = document.createElement("div");
+  const render = () => {
+    let list = filter ? rows.filter(filter()) : rows.slice();
+    const col = columns.find(c => c.key === sortKey);
+    const val = col?.sortVal || (r => r[sortKey]);
+    list.sort((a, b) => {
+      const x = val(a), y = val(b);
+      if (x == null && y == null) return 0;
+      if (x == null) return 1; if (y == null) return -1;
+      return (typeof x === "string" ? x.localeCompare(y, "ja") : x - y) * (dir === "asc" ? 1 : -1);
+    });
+    const max = {};
+    columns.filter(c => c.heat).forEach(c => max[c.key] = Math.max(0, ...list.map(r => Number(r[c.key]) || 0)));
+    const head = columns.map(c => `<th class="${c.r ? "r " : ""}${c.sort !== false ? "sortable" : ""}" ${c.sort !== false ? `tabindex="0" data-k="${c.key}"` : ""} ${c.key === sortKey ? `aria-sort="${dir === "asc" ? "ascending" : "descending"}"` : ""}>${c.label}</th>`).join("");
+    const body = list.slice(0, shown).map((r, i) => `<tr>${columns.map(c => `<td class="${c.r ? "r" : ""}">${c.cell(r, i, max[c.key])}</td>`).join("")}</tr>`).join("");
+    wrap.innerHTML = `<p class="count">${int(list.length)}件</p><div class="tablewrap"><table><thead><tr>${head}</tr></thead><tbody>${body || `<tr><td colspan="${columns.length}">該当なし</td></tr>`}</tbody></table></div>${list.length > shown ? `<button class="more">さらに${Math.min(pageSize, list.length - shown)}件表示</button>` : ""}`;
+    wrap.querySelectorAll("th.sortable").forEach(th => {
+      const go = () => { const k = th.dataset.k; dir = (k === sortKey && dir === "desc") ? "asc" : "desc"; sortKey = k; render(); };
+      th.onclick = go; th.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } };
+    });
+    const more = wrap.querySelector("button.more");
+    if (more) more.onclick = () => { shown += pageSize; render(); };
+  };
+  wrap.rerender = () => { shown = pageSize; render(); };
+  render();
+  return wrap;
+}
+
+// ---------- 王国一覧 ----------
+async function viewStates() {
+  const [data, idx] = await Promise.all([load("states.json"), load("alliances/index.json")]);
+  if (!data) {
+    app.innerHTML = `<h1>王国一覧</h1><p class="note">まだデータがありません。GitHub の Actions タブで「データ更新とサイト公開」を手動実行すると、初回のデータが入ります。</p>`;
+    return;
+  }
+  const watched = (idx?.alliances || []);
+  app.innerHTML = `
+    <h1>王国一覧</h1>
+    <p class="sub">全${int(data.states.length)}王国。見出しを押すと並べ替えできます。</p>
+    ${watched.length ? `<h2>同盟ページがある同盟</h2><div class="chips">${watched.map(a => `<a href="#/alliance/${a.kid}/${encodeURIComponent(a.tag)}">[${esc(a.tag)}] ${esc(a.name)}<span class="dim"> #${a.kid}</span></a>`).join("")}</div>` : ""}
+    <h2>すべての王国</h2><div class="tools"><input type="search" id="q" placeholder="王国番号で検索（例：3345）" inputmode="numeric" aria-label="王国番号で検索"></div>
+    <div id="list"></div>`;
+  const q = app.querySelector("#q");
+  const table = sortableTable({
+    rows: data.states,
+    initialSort: { key: "power", dir: "desc" },
+    filter: () => { const v = q.value.trim(); return r => !v || String(r.kid).startsWith(v); },
+    columns: [
+      { key: "kid", label: "王国", cell: r => `<a href="#/state/${r.kid}"><span class="num">#${r.kid}</span></a>` },
+      { key: "power", label: "総戦力", r: false, heat: true, cell: (r, i, m) => heat(r.power, m) },
+      { key: "avg_power", label: "平均戦力", r: true, cell: r => `<span class="num">${jp(r.avg_power)}</span>` },
+      { key: "player_count", label: "人数", r: true, cell: r => `<span class="num">${int(r.player_count)}</span>` },
+      { key: "alliance_count", label: "同盟数", r: true, cell: r => `<span class="num">${int(r.alliance_count)}</span>` },
+      { key: "power_gain_7d", label: "7日の戦力増", r: true, cell: r => `<span class="num">${jp(r.power_gain_7d)}</span>` },
+      { key: "age_days", label: "開設から", r: true, cell: r => r.age_days != null ? `<span class="num">${int(r.age_days)}</span>日` : "–" },
+    ],
+  });
+  q.oninput = () => table.rerender();
+  q.onkeydown = e => { if (e.key === "Enter" && /^\d+$/.test(q.value.trim())) location.hash = `#/state/${q.value.trim()}`; };
+  app.querySelector("#list").append(table);
+}
+
+// ---------- 王国ページ ----------
+async function viewState(kid) {
+  const [detail, list, idx] = await Promise.all([load(`states/${kid}.json`), load("states.json"), load("alliances/index.json")]);
+  const s = detail?.state || list?.states?.find(x => String(x.kid) === String(kid));
+  if (!s) { app.innerHTML = `<p class="note">王国 #${esc(kid)} のデータはまだありません。王国番号を確認するか、次回の更新をお待ちください。<br><a href="#/">王国一覧に戻る</a></p>`; return; }
+  const have = new Set((idx?.alliances || []).filter(a => String(a.kid) === String(kid)).map(a => a.tag));
+  const stat = (label, v) => `<div><dt>${label}</dt><dd class="num">${v}</dd></div>`;
+  app.innerHTML = `
+    <p class="hero-num"><small>王国</small>${esc(kid)}</p>
+    <p class="sub">${s.opened_on ? `開設 ${esc(s.opened_on)}` : ""}${s.age_days != null ? `（${int(s.age_days)}日目）` : ""}　${detail ? `更新 ${ago(detail.updated_at)}` : "詳細は順次取得中です"}</p>
+    <dl class="stats">
+      ${stat("総戦力", jp(s.power))}${stat("平均戦力", jp(s.avg_power))}${stat("戦力順位", s.power_rank ? int(s.power_rank) + "位" : "–")}
+      ${stat("人数", int(s.player_count))}${stat("同盟数", int(s.alliance_count))}${stat("7日の戦力増", jp(s.power_gain_7d))}
+    </dl>
+    <div class="grid2"><section id="al"></section><section id="pl"></section></div>`;
+  if (!detail) return;
+  const alliances = boardRows(detail.boards, "alliance_power");
+  const players = boardRows(detail.boards, "personal_power");
+  const al = app.querySelector("#al"), pl = app.querySelector("#pl");
+  al.innerHTML = `<h2>同盟戦力ランキング</h2>`;
+  al.append(alliances.length ? sortableTable({
+    rows: alliances.map((r, i) => ({ ...r, _rank: i + 1 })), initialSort: { key: "_rank", dir: "asc" }, pageSize: 20,
+    columns: [
+      { key: "_rank", label: "順位", cell: r => `<span class="num">${r._rank}</span>` },
+      { key: "abbr", label: "同盟", cell: r => have.has(r.abbr) ? `<a href="#/alliance/${kid}/${encodeURIComponent(r.abbr)}">[${esc(r.abbr)}] ${esc(r.name)}</a>` : `[${esc(r.abbr)}] ${esc(r.name)}` },
+      { key: "score", label: "戦力", heat: true, cell: (r, i, m) => heat(r.score, m) },
+    ],
+  }) : Object.assign(document.createElement("p"), { className: "note", textContent: "ランキングデータがありません。" }));
+  pl.innerHTML = `<h2>個人戦力ランキング</h2>`;
+  pl.append(players.length ? sortableTable({
+    rows: players.map((r, i) => ({ ...r, _rank: i + 1 })), initialSort: { key: "_rank", dir: "asc" }, pageSize: 20,
+    columns: [
+      { key: "_rank", label: "順位", cell: r => `<span class="num">${r._rank}</span>` },
+      { key: "nick_name", label: "領主", cell: r => esc(r.nick_name) },
+      { key: "score", label: "戦力", heat: true, cell: (r, i, m) => heat(r.score, m) },
+    ],
+  }) : Object.assign(document.createElement("p"), { className: "note", textContent: "ランキングデータがありません。" }));
+}
+
+// ---------- 同盟ページ ----------
+async function viewAlliance(kid, tag) {
+  const d = await load(`alliances/${kid}/${safeTag(tag)}.json`);
+  if (!d) { app.innerHTML = `<p class="note">同盟 [${esc(tag)}]（王国 #${esc(kid)}）のデータはまだありません。config.json の watch_alliances に追加すると、次回の更新から表示されます。<br><a href="#/state/${esc(kid)}">王国 #${esc(kid)} に戻る</a></p>`; return; }
+  const a = d.alliance || {};
+  const m = d.members || [];
+  const furnaceMax = Math.max(0, ...m.map(x => Number(x.furnace_level) || 0));
+  const stat = (label, v) => `<div><dt>${label}</dt><dd class="num">${v}</dd></div>`;
+  app.innerHTML = `
+    <p class="sub"><a href="#/state/${esc(kid)}">王国 #${esc(kid)}</a></p>
+    <h1>[${esc(a.abbr || tag)}] ${esc(a.name || "")}</h1>
+    <p class="sub">盟主 ${esc(a.leader_name || "–")}　更新 ${ago(d.updated_at)}</p>
+    <dl class="stats">
+      ${stat("同盟戦力", jp(a.power))}${stat("王国内順位", a.power_rank ? int(a.power_rank) + "位" : "–")}
+      ${stat("メンバー", int(a.count ?? m.length))}${stat("最高溶鉱炉Lv", furnaceMax || "–")}
+    </dl>
+    <h2>メンバー</h2>
+    <div class="tools"><input type="search" id="q" placeholder="名前で検索" aria-label="メンバー名で検索"></div>
+    <div id="list"></div>`;
+  const q = app.querySelector("#q");
+  const table = sortableTable({
+    rows: m, initialSort: { key: "power", dir: "desc" },
+    filter: () => { const v = q.value.trim().toLowerCase(); return r => !v || String(r.nick_name || "").toLowerCase().includes(v); },
+    columns: [
+      { key: "nick_name", label: "領主", cell: r => esc(r.nick_name) },
+      { key: "alliance_rank", label: "階級", sortVal: r => Number(r.alliance_rank) || 0, cell: r => rankPill(r.alliance_rank_label, r.alliance_rank) },
+      { key: "power", label: "戦力", heat: true, cell: (r, i, mx) => heat(r.power, mx) },
+      { key: "furnace_level", label: "溶鉱炉Lv", r: true, cell: r => `<span class="num">${r.furnace_level ?? "–"}</span>` },
+      { key: "kills", label: "撃破数", r: true, cell: r => `<span class="num">${jp(r.kills)}</span>` },
+    ],
+  });
+  q.oninput = () => table.rerender();
+  app.querySelector("#list").append(table);
+}
+
+// ---------- ルーティング ----------
+async function route() {
+  const parts = location.hash.replace(/^#\/?/, "").split("/").map(decodeURIComponent);
+  window.scrollTo(0, 0);
+  if (parts[0] === "state" && parts[1]) await viewState(parts[1]);
+  else if (parts[0] === "alliance" && parts[1] && parts[2]) await viewAlliance(parts[1], parts[2]);
+  else await viewStates();
+  const t = { state: `王国 #${parts[1]}`, alliance: `[${parts[2]}] 王国 #${parts[1]}` }[parts[0]];
+  document.title = (t ? t + " | " : "") + "WoS 王国データ";
+}
+load("meta.json").then(m => { if (m?.updated_at) document.getElementById("updated").textContent = "最終更新 " + ago(m.updated_at); });
+addEventListener("hashchange", route);
+route();
+</script>
+</body>
+</html>

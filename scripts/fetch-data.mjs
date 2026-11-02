@@ -118,6 +118,8 @@ try {
   }
 
   // 2) 王国の詳細を取る関数
+  const lang = await readJSON("lang.json", { states: {} });
+  globalThis.__lang = lang;
   const rotation = await readJSON("rotation.json", { next: 0 });
   globalThis.__rotation = rotation;
   const allKids = states.map((s) => Number(s.kid));
@@ -129,6 +131,8 @@ try {
     const state = body.state ?? body;
     const boards = body.boards ?? state.boards ?? null;
     await writeJSON(`states/${kid}.json`, { updated_at: now, state: { ...state, boards: undefined }, boards });
+    const jp = japaneseShare(boardRows(boards, "personal_power").map((r) => r.nick_name));
+    if (jp) lang.states[kid] = { ...jp, at: now.slice(0, 10) };
     detailDone++;
     return boards;
   }
@@ -182,6 +186,15 @@ try {
   else { console.error(e); process.exitCode = 1; log.push(`エラー: ${e.message}`); }
 }
 
+// 名前にひらがな・カタカナが入っている割合（日本人の多さの目安）
+function japaneseShare(names) {
+  const list = names.filter((n) => typeof n === "string" && n.trim());
+  if (list.length < 10) return null;
+  const kana = /[\u3041-\u309F\u30A1-\u30FF\uFF66-\uFF9F]/;
+  const jp = list.filter((n) => kana.test(n)).length;
+  return { jp: Math.round((jp / list.length) * 100), n: list.length };
+}
+
 function topAllianceTags(boards, n) {
   const rows = boardRows(boards, "alliance_power");
   return rows.map((r) => r.abbr).filter(Boolean).slice(0, n);
@@ -196,6 +209,7 @@ function boardRows(boards, key) {
 }
 
 if (globalThis.__rotation) await writeJSON("rotation.json", globalThis.__rotation);
+if (globalThis.__lang) await writeJSON("lang.json", globalThis.__lang);
 meta.updated_at = now;
 meta.api_calls = calls;
 meta.log = log;

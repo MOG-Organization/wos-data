@@ -12,7 +12,8 @@
   :root {
     --bg: #EAF0F5; --surface: #F7FAFC; --ink: #16273A; --steel: #586D82;
     --rime: #C9D5E1; --ember: #D47A22; --ember-soft: #F3D2AE; --link: #1F5E99;
-    --frost: #3B7BB8; --frost-soft: #D3E3F2; --warn: #B4471F; --warn-soft: #F7DCD1;
+    --frost: #2F6FAE; --frost-soft: #D3E3F2; --warn: #B4471F; --warn-soft: #F7DCD1;
+    --on-accent: #FFFFFF; --atk: #A9551A; --def: #2F6FAE;
     color-scheme: light;
     box-sizing: border-box;
     padding-top: env(safe-area-inset-top, 0px);
@@ -23,6 +24,7 @@
       --bg: #0E1A26; --surface: #152536; --ink: #E2EBF3; --steel: #91A5B9;
       --rime: #263A50; --ember: #F09A46; --ember-soft: #5A3A1C; --link: #8CC2F2;
       --frost: #7DB4E8; --frost-soft: #1C3956; --warn: #F08A66; --warn-soft: #4A2416;
+      --on-accent: #0E1A26; --atk: #F09A46; --def: #7DB4E8;
       color-scheme: dark;
     }
   }
@@ -73,21 +75,29 @@
   .bar .sep { flex: 1; }
   .bar .saved { font-size: 12px; color: var(--steel); }
 
-  /* グループ */
-  .groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 540px), 1fr)); gap: 20px; }
-  .group { background: var(--surface); border: 1px solid var(--rime); border-radius: 8px; overflow: hidden; border-top: 4px solid var(--ember); }
-  .group.def { border-top-color: var(--frost); }
-  .ghead { display: flex; gap: 8px; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--rime); flex-wrap: wrap; }
-  .ghead input.gname { font-weight: 700; font-size: 17px; flex: 1 1 140px; border-color: transparent; background: transparent; padding: 4px 6px; }
-  .ghead input.gname:hover, .ghead input.gname:focus { border-color: var(--rime); background: var(--bg); }
-  .seg { display: inline-flex; border: 1px solid var(--rime); border-radius: 6px; overflow: hidden; }
-  .seg button { border: 0; border-radius: 0; padding: 5px 12px; font-size: 13px; background: transparent; }
-  .seg button[aria-pressed=true].atk { background: var(--ember); color: var(--surface); font-weight: 700; }
-  .seg button[aria-pressed=true].def { background: var(--frost); color: var(--surface); font-weight: 700; }
+  /* グループ：種別の色で塗った見出し帯と太い枠で、グループ同士をはっきり分ける */
+  .groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 540px), 1fr)); gap: 28px; align-items: start; }
+  .group { --gc: var(--atk); --gc-soft: var(--ember-soft); background: var(--surface); border: 2px solid var(--gc); border-radius: 10px; overflow: hidden; box-shadow: 0 2px 0 var(--gc-soft); }
+  .group.def { --gc: var(--def); --gc-soft: var(--frost-soft); }
+  .ghead { display: flex; gap: 8px; align-items: center; padding: 10px 12px; background: var(--gc); color: var(--on-accent); }
+  .gno { flex: none; min-width: 34px; height: 34px; padding: 0 6px; display: grid; place-items: center; border-radius: 6px; background: var(--on-accent); color: var(--gc); font-size: 22px; font-weight: 700; }
+  .ghead input.gname { font-weight: 700; font-size: 18px; flex: 1 1 auto; min-width: 0; width: 0; border-color: transparent; background: transparent; color: var(--on-accent); padding: 4px 6px; }
+  .ghead input.gname:hover, .ghead input.gname:focus { border-color: var(--on-accent); background: rgba(255, 255, 255, .12); }
+  .ghead :focus-visible { outline-color: var(--on-accent); }
+  .seg { display: inline-flex; border: 1px solid var(--on-accent); border-radius: 6px; overflow: hidden; }
+  .seg button { border: 0; border-radius: 0; padding: 5px 12px; font-size: 13px; background: transparent; color: var(--on-accent); }
+  .seg button[aria-pressed=true] { background: var(--on-accent); color: var(--gc); font-weight: 700; }
+  .ghead button.ghost { color: var(--on-accent); opacity: .85; flex: none; padding: 4px 6px; }
+  .seg { flex: none; }
+  .ghead button.ghost:hover { opacity: 1; color: var(--on-accent); text-decoration: underline; }
 
-  .gbody { padding: 12px 14px 14px; }
-  .role { font-size: 12px; color: var(--steel); margin: 4px 0 6px; display: flex; justify-content: space-between; align-items: baseline; }
-  .leader { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-bottom: 14px; }
+  .gbody { padding: 12px; display: grid; gap: 12px; }
+  .panel { border: 1px solid var(--rime); border-radius: 8px; padding: 10px 12px 12px; }
+  .panel.boss { background: color-mix(in srgb, var(--gc-soft) 35%, var(--surface)); border-color: color-mix(in srgb, var(--gc) 45%, var(--rime)); }
+  .role { font-size: 12px; color: var(--steel); margin: 0 0 8px; display: flex; gap: 8px; align-items: baseline; }
+  .role b { font-size: 15px; color: var(--ink); }
+  .role .cnt { margin-left: auto; }
+  .leader { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
   .leader .memberwrap { grid-column: 1 / -1; }
   .leader .slot { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
   .leader .slot > span:first-child { font-size: 12px; color: var(--steel); padding-left: 2px; }
@@ -99,15 +109,14 @@
   .ratiosum.bad b, .ratiosum.bad { color: var(--warn); }
   .jrow { display: grid; grid-template-columns: 26px minmax(0, 1.4fr) minmax(0, 1.2fr) 74px 30px; gap: 6px; align-items: center; padding: 4px 0; border-radius: 6px; }
   .jrow .idx { text-align: center; color: var(--steel); font-size: 13px; }
-  .jrow.active .idx { color: var(--surface); background: var(--ember); border-radius: 4px; font-weight: 700; }
-  .group.def .jrow.active .idx { background: var(--frost); }
+  .jrow.active .idx { color: var(--on-accent); background: var(--gc); border-radius: 4px; font-weight: 700; }
   .leader input, .leader select, .jrow input, .jrow select { width: 100%; }
   .memberwrap { position: relative; min-width: 0; }
   .memberwrap .meta { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: 11px; color: var(--steel); pointer-events: none; white-space: nowrap; max-width: 45%; overflow: hidden; text-overflow: ellipsis; }
   .memberwrap input { padding-right: 70px; }
   .addj { margin-top: 8px; }
 
-  .summary { margin-top: 12px; padding: 10px 12px; border-radius: 6px; background: var(--bg); font-size: 13px; }
+  .summary { padding: 10px 12px; border-radius: 8px; background: var(--bg); font-size: 13px; }
   .summary b { font-weight: 700; }
   .summary ul { margin: 4px 0 0; padding-left: 1.2em; }
   .summary .warn { color: var(--warn); }
@@ -182,7 +191,7 @@
 </main>
 
 <footer>
-  英雄一覧と兵種はアルテマ「英雄一覧」「SSR英雄一覧」（2026年9月29日更新、第18世代まで）と「SR英雄一覧」を元にしています。メンバー名簿はサイトが毎日取得している同盟データです。割り振りの途中経過はこのブラウザに自動で一時保存されます。共有にはパスコードかCSVを使ってください。
+  英雄一覧と兵種はアルテマ「英雄一覧」「SSR英雄一覧」（2026年9月29日更新、第18世代まで）と「SR英雄一覧」を元にしています。メンバー名簿はサイトが毎日取得している同盟データです。名前の右の数字は地底探検（総合）のスコアで、王国ごとのランキング上位100人に入っていない人は「圏外」と表示されます。割り振りの途中経過はこのブラウザに自動で一時保存されます。共有にはパスコードかCSVを使ってください。
 </footer>
 
 <datalist id="memberList"></datalist>
@@ -298,15 +307,23 @@ async function loadRoster() {
         const id = String(m.fid ?? m.chief_id ?? m.player_id ?? m.uid ?? "");
         const name = m.nick_name ?? m.name ?? "";
         if (!name) continue;
-        roster.push({ id, name, tag: a.tag, kid: a.kid, power: Number(m.power) || 0, furnace: m.furnace_level ?? null });
+        roster.push({ id, uid: String(m.uid ?? ""), name, tag: a.tag, kid: a.kid, power: Number(m.power) || 0, lab: null, labRank: null });
       }
     }
-    roster.sort((x, y) => y.power - x.power);
+    // 地底探検（総合）のスコア。王国ごとのランキング（上位100人）から uid で突き合わせる
+    const kids = [...new Set(roster.map(r => r.kid))];
+    const states = await Promise.all(kids.map(k => fetch(`data/states/${k}.json`, { cache: "no-cache" }).then(r => r.ok ? r.json() : null).catch(() => null)));
+    const lab = new Map();
+    states.forEach((sd, i) => labRows(sd?.boards).forEach((row, j) => lab.set(`${kids[i]}:${row.uid}`, { score: Number(row.score) || 0, rank: row.rank ?? j + 1 })));
+    for (const r of roster) { const L = lab.get(`${r.kid}:${r.uid}`); if (L) { r.lab = L.score; r.labRank = L.rank; } }
+    labLoaded = lab.size > 0;
+    // 地底探検スコアの高い順。ランキング圏外の人は戦力順で後ろに並べる
+    roster.sort((x, y) => (y.lab ?? -1) - (x.lab ?? -1) || y.power - x.power);
     const dl = document.getElementById("memberList");
     dl.innerHTML = roster.map(r => {
       const label = `${r.name} [${r.tag}]`;
       byLabel.set(label, r);
-      return `<option value="${esc(label)}">${esc(jp(r.power))}</option>`;
+      return `<option value="${esc(label)}">${esc(labText(r))}</option>`;
     }).join("");
     info.textContent = roster.length ? `名簿 ${roster.length}人（${list.length}同盟）` : "名簿データなし（名前は手入力できます）";
   } catch {
@@ -336,11 +353,19 @@ function parseMember(text, prev) {
   return { id: "", name: v, tag: "" };
 }
 const memberLabel = m => !m?.name ? "" : m.tag ? `${m.name} [${m.tag}]` : m.name;
+let labLoaded = false;
+function labRows(boards) {
+  if (!boards) return [];
+  const b = Array.isArray(boards) ? boards.find(x => [x.key, x.board, x.type, x.slug].includes("labyrinth")) : boards.labyrinth;
+  return firstArray(b, ["rows", "entries", "items", "ranks"]);
+}
+const labText = r => !labLoaded ? "地底探検 データなし" : r.lab != null ? `地底探検 ${r.lab.toLocaleString("ja-JP")}（${r.labRank}位）` : "地底探検 圏外";
 function memberMeta(m) {
   if (!m?.name) return "";
   if (!m.id) return "手入力";
   const r = roster.find(x => x.id === m.id);
-  return r ? jp(r.power) : "";
+  if (!r || !labLoaded) return "";
+  return r.lab != null ? `地底 ${r.lab.toLocaleString("ja-JP")}` : "地底 圏外";
 }
 
 // ===== 描画 =====
@@ -434,6 +459,7 @@ function render() {
     const { html, activeIdx } = groupInfo(g, usage);
     return `<section class="group ${g.type}" data-g="${gi}" aria-label="${esc(g.name)}">
       <div class="ghead">
+        <span class="gno num" aria-hidden="true">${gi + 1}</span>
         <input class="gname" type="text" value="${esc(g.name)}" data-act="gname" aria-label="グループ名">
         <span class="seg" role="group" aria-label="集結か駐屯か">
           <button class="atk" data-act="type" data-v="atk" aria-pressed="${g.type === "atk"}">集結</button>
@@ -442,14 +468,17 @@ function render() {
         <button class="ghost" data-act="delgroup" aria-label="${esc(g.name)}を削除">削除</button>
       </div>
       <div class="gbody">
-        <div class="role"><span>箱主（${g.type === "def" ? "駐屯" : "集結"}の主）と英雄</span></div>
+        <div class="panel boss">
+        <div class="role"><b>箱主</b><span>${g.type === "def" ? "駐屯" : "集結"}の主と英雄・兵種比率</span></div>
         <div class="leader">
           ${memberInput(g.leader.m, `data-act="leader" aria-label="箱主"`)}
           ${[0, 1, 2].map(k => `<div class="slot"><span>${CLASS_NAMES[k]}</span><select data-act="lhero" data-k="${k}" aria-label="箱主の${CLASS_NAMES[k]}英雄">${heroOptions(g.leader.heroes[k], "未選択", k)}</select>
             <span class="ratio"><input type="number" inputmode="numeric" min="0" max="100" step="1" data-act="ratio" data-k="${k}" value="${ratioOf(g)[k] ?? ""}" placeholder="-" aria-label="${CLASS_NAMES[k]}の比率（%）"><i>%</i></span></div>`).join("")}
           <div class="ratiosum${ratioSum(g) != null && ratioSum(g) !== 100 ? " bad" : ""}" data-ratiosum>${ratioSumHtml(g)}</div>
         </div>
-        <div class="role"><span>乗り手（先頭英雄と第1遠征スキルLv）</span><span class="num">${g.joiners.length}人</span></div>
+        </div>
+        <div class="panel riders">
+        <div class="role"><b>乗り手</b><span>先頭英雄と第1遠征スキルLv</span><span class="cnt num">${g.joiners.length}人</span></div>
         ${g.joiners.map((j, ji) => `<div class="jrow${activeIdx.has(ji) ? " active" : ""}" data-j="${ji}">
             <span class="idx num">${ji + 1}</span>
             ${memberInput(j.m, `data-act="jm" aria-label="乗り手${ji + 1}"`)}
@@ -458,6 +487,7 @@ function render() {
             <button class="ghost del" data-act="deljoiner" aria-label="乗り手${ji + 1}を削除">✕</button>
           </div>`).join("")}
         <button class="addj" data-act="addjoiner">乗り手を追加</button>
+        </div>
         <div class="summary" aria-live="polite">${html}</div>
       </div>
     </section>`;

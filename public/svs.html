@@ -350,6 +350,9 @@ function parseMember(text, prev) {
     const hit = roster.find(x => x.name === m[1] && x.tag === m[2]);
     return hit ? { id: hit.id, name: hit.name, tag: hit.tag } : { id: "", name: m[1], tag: m[2] };
   }
+  // 候補を選ばずに名前だけ入力した場合も、名簿に同じ名前が1人だけなら紐づける（スマホ向け）
+  const same = roster.filter(x => x.name === v);
+  if (same.length === 1) return { id: same[0].id, name: same[0].name, tag: same[0].tag };
   return { id: "", name: v, tag: "" };
 }
 const memberLabel = m => !m?.name ? "" : m.tag ? `${m.name} [${m.tag}]` : m.name;

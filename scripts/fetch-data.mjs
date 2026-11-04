@@ -9,6 +9,7 @@ const API_BASE = process.env.WOS_API_BASE || "https://api.whiteoutstats.com/v1";
 const API_KEY = process.env.WOS_API_KEY;
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
 const DATA = path.join(ROOT, "public", "data");
+const HIST = path.join(ROOT, "history", "svs"); // SvS 履歴はやり直しがきかないのでリポジトリに保存する
 const MIN_INTERVAL_MS = Number(process.env.WOS_MIN_INTERVAL_MS ?? 1050); // 毎分60回の制限に合わせる
 
 if (!API_KEY) {
@@ -33,6 +34,7 @@ async function api(pathAndQuery, { counted = true } = {}) {
     lastCallAt = Date.now();
     const res = await fetch(API_BASE + pathAndQuery, {
       headers: { Authorization: `Bearer ${API_KEY}`, Accept: "application/json" },
+      signal: AbortSignal.timeout(150000), // プレイヤー情報は API 側で最大90秒待つことがある
     });
     if (counted) { calls++; budget--; }
     if (res.status === 429) {
@@ -212,6 +214,14 @@ try {
     log.push(`同盟: ${allianceDone}件`);
   }
 
+  // 4) SvS（Frosty キーのみ）。準備期間の点数をシーズンごとに記録
+  try { await recordSvs(); }
+  catch (e) { if (e instanceof BudgetExhausted) throw e; console.error(e); log.push(`SvS: エラー ${e.message}`); }
+
+  // 5) 英雄（闘技場の防衛編成）：対象王国の地底探検上位の人だけ（1人1回）
+  try { await recordHeroes(fetchState); }
+  catch (e) { if (e instanceof BudgetExhausted) throw e; console.error(e); log.push(`英雄: エラー ${e.message}`); }
+
   // 2-b) その他の王国は残り回数の範囲で順番に（次回は続きから）
   try {
     const perRun = config.detail_per_run ?? 1200;
@@ -239,6 +249,139 @@ function japaneseShare(names) {
   return { jp: Math.round((jp / list.length) * 100), n: list.length };
 }
 
+// ---------- SvS ----------
+async function recordSvs() {
+  let body;
+  try { body = await api("/svs/matchups"); }
+  catch (e) {
+    if (/HTTP 403/.test(e.message)) { log.push("SvS: Frosty のキーではないためスキップ"); return; }
+    throw e;
+  }
+  const season = body?.season ?? body?.current_season;
+  const pairsRaw = firstArray(body, ["matchups", "pairs", "items", "data"]);
+  if (!season || !pairsRaw.length) { log.push("SvS: 今シーズンの対戦表がありません"); return; }
+  meta.svs_sample = pairsRaw[0]; // 応答の形の確認用
+
+  const kidOf = (v) => (v == null ? null : typeof v === "object" ? Number(v.kid ?? v.id) || null : Number(v) || null);
+  const file = path.join(HIST, `season-${season}.json`);
+  const hist = JSON.parse(await fs.readFile(file, "utf8").catch(() => "null")) || { season, pairs: {} };
+  hist.stage = body.stage ?? hist.stage;
+  hist.updated_at = now;
+  let done = 0, skipped = 0;
+  try {
+    for (const p of pairsRaw) {
+      const a = kidOf(p.state ?? p.a ?? p.kid ?? p.state_a ?? p.home);
+      const b = kidOf(p.opponent ?? p.b ?? p.opponent_kid ?? p.state_b ?? p.away);
+      if (!a) continue;
+      const key = b ? `${Math.min(a, b)}-${Math.max(a, b)}` : `${a}-bye`;
+      const prev = hist.pairs[key];
+      if (prev?.final || prev?.bye) { skipped++; continue; } // 確定済みは取り直さない
+      if (!b || p.bye) { hist.pairs[key] = { a, b: null, bye: true }; continue; }
+      const sc = await api(`/states/${a}/svs/scores`); // 片方の王国だけで両方の点数が分かる
+      if (!sc) { hist.pairs[key] = prev || { a, b }; continue; } // まだ点数が出ていない
+      const days = firstArray(sc, ["days"]).map((d) => ({ day: d.day, status: d.status, a: d.state_score, b: d.opponent_score }));
+      hist.pairs[key] = {
+        a: Number(sc.state ?? a), b: Number(sc.opponent ?? b),
+        score_a: sc.score ?? null, score_b: sc.opponent_score ?? null, stage: sc.stage ?? null, days,
+        final: days.length >= 5 && days.every((d) => /ended/i.test(d.status || "")),
+      };
+      done++;
+    }
+  } finally {
+    await fs.mkdir(HIST, { recursive: true });
+    await fs.writeFile(file, JSON.stringify(hist));
+    log.push(`SvS: シーズン${season} ${done}組を更新（確定済み${skipped}組はスキップ）`);
+  }
+}
+
+// ---------- 英雄（闘技場の防衛編成） ----------
+async function latestSvsOpponents(kids) {
+  const files = (await fs.readdir(HIST).catch(() => [])).filter((f) => /^season-\d+\.json$/.test(f));
+  if (!files.length) return [];
+  const latest = files.sort((a, b) => Number(b.match(/\d+/)[0]) - Number(a.match(/\d+/)[0]))[0];
+  const h = JSON.parse(await fs.readFile(path.join(HIST, latest), "utf8"));
+  const out = [];
+  for (const r of Object.values(h.pairs)) {
+    if (r.bye) continue;
+    if (kids.includes(r.a)) out.push(r.b);
+    if (kids.includes(r.b)) out.push(r.a);
+  }
+  return out;
+}
+function trimHero(h) {
+  return {
+    ...pick(h, ["id", "name", "level", "star", "stars", "star_label", "quality", "power", "icon", "position", "exclusive_gear_level"]),
+    skill_levels: (h.skill_levels || []).map((x) => pick(x, ["id", "level"])),
+    exclusive_gear: h.exclusive_gear ? pick(h.exclusive_gear, ["name", "level"]) : null,
+    gear: (h.gear || []).map((g) => pick(g, ["slot", "name", "enhancement_level", "refine_level", "quality_label", "red", "troop_label"])),
+  };
+}
+async function recordHeroes(fetchState) {
+  const topN = config.hero_top_n ?? 10;
+  const targets = [...new Set([
+    ...(config.hero_states || []).map(Number),
+    ...(config.hero_svs_opponent ? await latestSvsOpponents((config.watch_states || []).map(Number)) : []),
+  ])].filter(Boolean);
+  if (!targets.length) return;
+  let players = 0;
+  for (const kid of targets) {
+    let d = await readJSON(`states/${kid}.json`, null);
+    if (!d) { await fetchState(kid); d = await readJSON(`states/${kid}.json`, null); } // 対戦相手などで未取得なら取る
+    const lab = (d?.boards || []).find((b) => b.key === "labyrinth")?.rows || [];
+    const picked = lab.filter((r) => r.alliance_abbr && r.uid != null).slice(0, topN); // 同盟情報がある人だけ
+    const out = [];
+    try {
+      for (const r of picked) {
+        const body = await api(`/players/${r.uid}?id_type=uid&include=base,heroes`);
+        const p = body?.player;
+        if (!p) continue;
+        out.push({
+          uid: r.uid, nick_name: p.nick_name ?? r.nick_name, avatar_url: p.avatar_url ?? null,
+          alliance: p.alliance ? pick(p.alliance, ["abbr", "name", "rank_label"]) : { abbr: r.alliance_abbr },
+          power: p.power ?? null, furnace_level: p.furnace_level ?? null,
+          labyrinth_rank: r.rank, labyrinth: r.score,
+          heroes: firstArray(body.heroes ?? p.heroes, ["heroes", "team", "items"]).map(trimHero),
+        });
+        players++;
+      }
+    } finally {
+      if (out.length) await writeJSON(`heroes/${kid}.json`, { updated_at: now, kid, players: out });
+    }
+  }
+  log.push(`英雄: ${targets.length}王国 ${players}人`);
+}
+
+// 履歴（シーズンごとのファイル）から、王国ごとの表示用ファイルを作る（API 呼び出しなし）
+async function buildSvsPages() {
+  const files = (await fs.readdir(HIST).catch(() => [])).filter((f) => /^season-\d+\.json$/.test(f));
+  if (!files.length) return;
+  const perState = new Map();
+  const seasons = [];
+  for (const f of files) {
+    const h = JSON.parse(await fs.readFile(path.join(HIST, f), "utf8"));
+    seasons.push({ season: h.season, stage: h.stage, updated_at: h.updated_at, pairs: Object.keys(h.pairs).length });
+    for (const r of Object.values(h.pairs)) {
+      const sides = r.bye ? [[r.a, null, false]] : [[r.a, r.b, false], [r.b, r.a, true]];
+      for (const [own, opp, flip] of sides) {
+        if (!own) continue;
+        const e = r.bye ? { season: h.season, bye: true } : {
+          season: h.season, opponent: opp, final: !!r.final,
+          score: flip ? r.score_b : r.score_a, opponent_score: flip ? r.score_a : r.score_b,
+          days: (r.days || []).map((d) => ({ day: d.day, status: d.status, own: flip ? d.b : d.a, opp: flip ? d.a : d.b })),
+        };
+        if (!perState.has(own)) perState.set(own, []);
+        perState.get(own).push(e);
+      }
+    }
+  }
+  for (const [kid, list] of perState) {
+    list.sort((x, y) => y.season - x.season);
+    await writeJSON(`svs/${kid}.json`, list);
+  }
+  seasons.sort((x, y) => y.season - x.season);
+  await writeJSON("svs/index.json", { seasons });
+}
+
 function topAllianceTags(boards, n) {
   const rows = boardRows(boards, "alliance_power");
   return rows.map((r) => r.abbr).filter(Boolean).slice(0, n);
@@ -252,6 +395,7 @@ function boardRows(boards, key) {
   return firstArray(boards[key], ["rows", "entries", "items", "ranks"]);
 }
 
+await buildSvsPages().catch((e) => log.push(`SvS 表示用ファイルの作成に失敗: ${e.message}`));
 if (globalThis.__rotation) await writeJSON("rotation.json", globalThis.__rotation);
 if (globalThis.__lang) {
   await writeJSON("lang.json", globalThis.__lang);
@@ -261,6 +405,7 @@ if (globalThis.__lang) {
 meta.updated_at = now;
 meta.watch_states = config.watch_states || [];
 meta.watch_alliances = config.watch_alliances || [];
+meta.hero_states = (await fs.readdir(path.join(DATA, "heroes")).catch(() => [])).filter((f) => f.endsWith(".json")).map((f) => Number(f.replace(".json", ""))).sort();
 meta.api_calls = calls;
 meta.log = log;
 await writeJSON("meta.json", meta);

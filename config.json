@@ -1,10 +1,13 @@
 {
-  "watch_states": [3345,3352,3377,3343],
+  "watch_states": [3345,3352,3377,3343,3317],
   "watch_alliances": [
     { "kid": 3345, "tag": "MOG" }
   ],
   "top_alliances_per_watched_state": 10,
-  "detail_per_run": 4500,
+  "detail_per_run": 4800,
   "list_page_size": 100,
-  "daily_safety_margin": 300
+  "daily_safety_margin": 300,
+  "hero_states": [3345,3352,3377,3343,3317],
+  "hero_svs_opponent": true,
+  "hero_top_n": 10
 }

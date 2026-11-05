@@ -38,6 +38,12 @@ jobs:
           key: wos-data-${{ github.run_id }}
           restore-keys: wos-data-
 
+      # 公式Wikiから英雄のID・日本語名・アイコンを集める（前回から7日以上たっていれば実行）
+      - name: 英雄一覧を更新
+        if: github.event_name != 'push'
+        continue-on-error: true
+        run: node scripts/build-hero-db.mjs
+
       - name: データ取得
         if: github.event_name != 'push'
         env:
@@ -52,14 +58,16 @@ jobs:
           key: wos-data-${{ github.run_id }}
 
       # SvS の履歴は取り直しがきかないので、キャッシュではなくリポジトリに保存する（小さいファイル）
-      - name: SvS履歴を保存（コミット）
+      - name: SvS履歴・英雄一覧を保存（コミット）
         if: always() && github.event_name != 'push'
         run: |
-          if [ -d history ] && [ -n "$(git status --porcelain history)" ]; then
+          if [ -n "$(git status --porcelain history public/hero-db.json 2>/dev/null)" ]; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add history
-            git commit -m "SvS履歴を更新 $(date -u +%Y-%m-%d)"
+            git add history public/hero-db.json 2>/dev/null || true
+            git add -A history 2>/dev/null || true
+            [ -f public/hero-db.json ] && git add public/hero-db.json
+            git commit -m "SvS履歴・英雄一覧を更新 $(date -u +%Y-%m-%d)"
             git pull --rebase origin main
             git push
           fi

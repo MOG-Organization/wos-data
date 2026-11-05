@@ -152,6 +152,24 @@
   .gd .g { display: inline-block; margin: 3px 6px 0 0; padding: 1px 6px; border: 1px solid var(--rime); border-radius: 4px; }
   .gd .g.red { border-color: var(--ember); color: var(--ember); }
   .gd small { margin-left: 3px; color: var(--steel); }
+  .picked { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 4px 0 10px; }
+  .kchip { display: inline-flex; align-items: center; border: 1px solid var(--rime); border-radius: 999px; background: var(--surface); }
+  .kchip a { padding: 6px 4px 6px 14px; font-family: "Saira Condensed", "Arial Narrow", sans-serif; font-size: 17px; }
+  .kchip .x { font: inherit; border: 0; background: none; color: var(--steel); cursor: pointer; padding: 6px 12px 6px 8px; font-size: 16px; }
+  .addk { font: inherit; font-size: 14px; padding: 7px 14px; border: 1px dashed var(--ember); border-radius: 999px; background: none; color: var(--ember); cursor: pointer; }
+  .picker { border: 1px solid var(--rime); border-radius: 8px; background: var(--surface); padding: 12px; margin: 0 0 14px; }
+  .pkq { margin-bottom: 10px; }
+  .pkrow { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+  .pkb { font: inherit; display: inline-flex; gap: 6px; align-items: baseline; padding: 6px 12px; border: 1px solid var(--rime); border-radius: 8px; background: var(--bg); color: var(--ink); cursor: pointer; }
+  .pkb.on, .pkr.on { border-color: var(--ember); }
+  .pkb b { font-size: 16px; }
+  .tag { font-size: 10px; padding: 0 5px; border-radius: 3px; background: var(--ember-soft); color: var(--ink); }
+  .pkl { display: grid; gap: 4px; max-height: 320px; overflow-y: auto; }
+  .pkr { font: inherit; display: grid; grid-template-columns: 4.2em 1fr auto auto 1.6em; gap: 10px; align-items: center; text-align: left; padding: 8px 10px; border: 1px solid var(--rime); border-radius: 6px; background: var(--bg); color: var(--ink); cursor: pointer; }
+  .pkr b { font-size: 16px; }
+  .pkr .ck { color: var(--ember); font-weight: 700; text-align: center; }
+  input.hn-in { font: inherit; font-size: 16px; padding: 4px 8px; border: 1px solid var(--rime); border-radius: 4px; background: var(--surface); color: var(--ink); width: 10em; }
+  code { font-size: 12px; background: var(--bg); padding: 1px 4px; border-radius: 3px; }
   label.check { font-size: 14px; display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
   .jp { display: inline-block; min-width: 3.2em; text-align: right; }
   .jp.hi { color: var(--ember); font-weight: 700; }
@@ -342,7 +360,7 @@ async function viewStates() {
     <h1>王国一覧</h1>
     <p class="sub">全${int(data.states.length)}王国。見出しを押すと並べ替えできます。</p>
     ${watched.length ? `<h2>同盟ページがある同盟</h2><div class="chips scrollx">${watched.map(a => `<a href="#/alliance/${a.kid}/${encodeURIComponent(a.tag)}">[${esc(a.tag)}] ${esc(a.name)}<span class="dim"> #${a.kid}</span></a>`).join("")}</div>` : ""}
-    <h2>すべての王国</h2><div class="tools"><input type="search" id="q" placeholder="王国番号で検索（例：3345）" inputmode="numeric" aria-label="王国番号で検索">
+    <h2>すべての王国</h2><div class="tools"><input type="search" id="q" name="kingdom_search" placeholder="王国を検索（例：3345）" inputmode="numeric" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" aria-label="王国を検索">
       <label class="check"><input type="checkbox" id="jponly"> 日本人が多い王国だけ（日本語名 ${JP_TH}%以上）</label></div>
     <p class="dim">日本語名＝戦力上位100人のうち、名前にひらがな・カタカナを含む人の割合。ローマ字名は数えないため目安です。未取得の王国は「–」で、順次埋まります。</p>
     <div id="list"></div>`;
@@ -499,7 +517,7 @@ async function viewAlliance(kid, tag) {
     ${lastSvs ? `<p class="sub">所属王国のSvS（直近）：<a href="#/state/${esc(kid)}">S${lastSvs.season} vs #${lastSvs.opponent}　${svsResult(lastSvs).text}</a>　<span class="days">${svsDays(lastSvs)}</span></p>` : ""}
     <h2>メンバー</h2>
     ${labRows.length ? `<p class="dim">地底探検は王国内の上位${labRows.length}人の記録です。それより下の人は「圏外」と表示されます。</p>` : ""}
-    <div class="tools"><input type="search" id="q" placeholder="名前で検索" aria-label="メンバー名で検索"></div>
+    <div class="tools"><input type="search" id="q" name="member_search" placeholder="領主を検索" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" aria-label="領主を検索"></div>
     <div id="list"></div>`;
   const q = app.querySelector("#q");
   const table = sortableTable({
@@ -520,6 +538,7 @@ async function viewAlliance(kid, tag) {
 
 // ---------- 地底探検の王国比較 ----------
 const MAX_COMPARE = 6;
+const SEARCH_ATTRS = 'autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"';
 // エリアのスコアは「基準値 + (ステージ-1)×10 + 小ステージ」の形（例：10495 = 50-5）。
 // 実データの score と score_label の対応から割り出した式で、平均値をステージ表記に戻すのに使う
 function stageLabel(score) {
@@ -529,6 +548,49 @@ function stageLabel(score) {
   const stage = Math.ceil(n / 10);
   return `${stage}-${n - (stage - 1) * 10}`;
 }
+// 王国を選ぶパネル（開閉状態と検索語は画面を描き直しても保つ）
+const PICK = { open: false, q: "", jp: false };
+async function setupPicker(kids, setKids, mode) {
+  const openBtn = app.querySelector("#openPick"), panel = app.querySelector("#picker");
+  if (!panel) return;
+  if (openBtn) openBtn.onclick = () => { PICK.open = !PICK.open; panel.hidden = !PICK.open; openBtn.setAttribute("aria-expanded", PICK.open); if (PICK.open) app.querySelector("#pkSearch").focus(); };
+  const [list, meta, lang] = await Promise.all([load("states.json"), load("meta.json"), load("lang.json")]);
+  const heroSet = new Set((meta?.hero_states || []).map(String));
+  const L = lang?.states || {};
+  const toggle = k => { k = String(k); if (kids.includes(k)) setKids(kids.filter(x => x !== k)); else if (kids.length < MAX_COMPARE) setKids([...kids, k]); };
+  const btn = (k, label) => `<button type="button" class="pkb${kids.includes(String(k)) ? " on" : ""}" data-k="${k}">${label ? `<span class="dim">${label}</span>` : ""}<b class="num">#${k}</b>${heroSet.has(String(k)) ? `<span class="tag">英雄</span>` : ""}</button>`;
+
+  // よく使う王国：自王国・SvSの対戦相手・英雄データがある王国
+  const quick = [], used = new Set();
+  const addQ = (k, label) => { if (!k || used.has(String(k))) return; used.add(String(k)); quick.push(btn(k, label)); };
+  for (const k of meta?.watch_states || []) {
+    addQ(k, "自王国");
+    const last = (await load(`svs/${k}.json`) || []).find(e => e.opponent);
+    if (last) addQ(last.opponent, `S${last.season} 相手`);
+  }
+  for (const k of meta?.hero_states || []) addQ(k, "");
+  app.querySelector("#pkQuick").innerHTML = quick.length ? `<div class="dim">よく使う王国</div><div class="pkrow">${quick.join("")}</div>` : "";
+
+  const listEl = app.querySelector("#pkList"), q = app.querySelector("#pkSearch"), jpBox = app.querySelector("#pkJp");
+  const drawList = () => {
+    PICK.q = q.value.trim(); PICK.jp = jpBox.checked;
+    let rows = (list?.states || []).map(s => ({ ...s, jp: L[s.kid]?.jp ?? null }));
+    if (PICK.q) rows = rows.filter(s => String(s.kid).startsWith(PICK.q));
+    if (PICK.jp) rows = rows.filter(s => (s.jp ?? -1) >= JP_TH);
+    if (!PICK.q && !PICK.jp) { listEl.innerHTML = `<p class="dim">王国番号を入力するか「日本人が多い王国」を選ぶと候補が出ます。</p>`; return; }
+    rows.sort((a, b) => PICK.q ? a.kid - b.kid : (totalPower(b) || 0) - (totalPower(a) || 0));
+    listEl.innerHTML = rows.length ? rows.slice(0, 30).map(s => `<button type="button" class="pkr${kids.includes(String(s.kid)) ? " on" : ""}" data-k="${s.kid}">
+        <b class="num">#${s.kid}</b><span class="num">${jp(totalPower(s))}</span><span class="dim">${s.jp != null ? `日本語${s.jp}%` : ""}</span>${heroSet.has(String(s.kid)) ? `<span class="tag">英雄</span>` : "<span></span>"}<span class="ck">${kids.includes(String(s.kid)) ? "✓" : "＋"}</span></button>`).join("")
+      + (rows.length > 30 ? `<p class="dim">ほか${rows.length - 30}件。番号を続けて入力すると絞り込めます。</p>` : "")
+      : `<p class="dim">該当する王国がありません。</p>`;
+    listEl.querySelectorAll(".pkr").forEach(b => b.onclick = () => toggle(b.dataset.k));
+  };
+  q.oninput = drawList; jpBox.onchange = drawList;
+  q.onkeydown = e => { if (e.key === "Enter" && /^\d+$/.test(q.value.trim())) { e.preventDefault(); toggle(q.value.trim()); } };
+  app.querySelectorAll("#pkQuick .pkb").forEach(b => b.onclick = () => toggle(b.dataset.k));
+  drawList();
+}
+
 async function viewCompare(param, modeParam) {
   const mode = modeParam === "hero" ? "hero" : "lab";
   const fromHash = (param || "").split(",").map(x => x.trim()).filter(x => /^\d+$/.test(x));
@@ -548,27 +610,21 @@ async function viewCompare(param, modeParam) {
     <p class="sub">${mode === "hero"
       ? "地底探検の上位10人（同盟所属の人）の、闘技場の防衛編成と装備を並べて比べられます。"
       : "地底探検の上位10人を並べて比べられます。"}（最大${MAX_COMPARE}王国）</p>
-    <div class="tools addrow">
-      <input type="search" id="addKid" placeholder="王国番号（例：3345）" inputmode="numeric" aria-label="比較する王国番号">
-      <button class="more" id="addBtn" style="margin:0">追加</button>
+    <div class="picked">${kids.map(k => `<span class="kchip"><a href="#/state/${k}">#${k}</a><button type="button" class="x" data-k="${k}" aria-label="#${k} を外す">×</button></span>`).join("")}
+      ${kids.length < MAX_COMPARE ? `<button type="button" class="addk" id="openPick" aria-expanded="${PICK.open}">＋ 王国を追加</button>` : `<span class="dim">上限の${MAX_COMPARE}王国です</span>`}</div>
+    <div class="picker" id="picker" ${PICK.open && kids.length < MAX_COMPARE ? "" : "hidden"}>
+      <div id="pkQuick" class="pkq"></div>
+      <div class="tools"><input type="search" id="pkSearch" name="kingdom_search" placeholder="王国を検索（例：3345）" inputmode="numeric" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" aria-label="王国を検索" value="${esc(PICK.q)}">
+        <label class="check"><input type="checkbox" id="pkJp" ${PICK.jp ? "checked" : ""}> 日本人が多い王国</label></div>
+      <div id="pkList" class="pkl"></div>
     </div>
-    <div class="chips" id="kidChips">${kids.map(k => `<a href="#/state/${k}">#${k}</a><button class="x" data-k="${k}" aria-label="#${k} を外す">×</button>`).join("")}</div>
     <div id="cmp"></div>`;
-  const input = app.querySelector("#addKid");
-  const add = () => {
-    const v = input.value.trim();
-    if (!/^\d+$/.test(v)) return;
-    if (kids.includes(v)) { input.value = ""; return; }
-    if (kids.length >= MAX_COMPARE) { alert(`比較できるのは${MAX_COMPARE}王国までです`); return; }
-    setKids([...kids, v]);
-  };
-  app.querySelector("#addBtn").onclick = add;
-  input.onkeydown = e => { if (e.key === "Enter") add(); };
-  app.querySelectorAll("#kidChips .x").forEach(b => b.onclick = () => setKids(kids.filter(k => k !== b.dataset.k)));
+  app.querySelectorAll(".kchip .x").forEach(b => b.onclick = () => setKids(kids.filter(k => k !== b.dataset.k)));
+  setupPicker(kids, setKids, mode);
 
   const box = app.querySelector("#cmp");
   if (!kids.length) { box.innerHTML = `<p class="note">比較したい王国番号を2つ以上追加してください。</p>`; return; }
-  if (mode === "hero") { renderHeroCompare(box, kids, heroData); return; }
+  if (mode === "hero") { await heroNamesReady; renderHeroCompare(box, kids, heroData); return; }
 
   const draw = () => {
     const isTotal = area === "labyrinth";
@@ -612,6 +668,16 @@ async function viewCompare(param, modeParam) {
 
 // ---------- 英雄（防衛編成）の比較 ----------
 const TROOP_JA = { Infantry: "盾兵", Lancer: "槍兵", Marksman: "弓兵" };
+// 英雄名：hero-names.json（IDごとの日本語名・英語名ごとの日本語名）で置き換える
+let HERO_NAMES = { by_id: {}, by_en: {} };
+const heroNamesReady = fetch("hero-names.json", { cache: "no-cache" }).then(r => r.ok ? r.json() : null).then(j => { if (j) HERO_NAMES = { by_id: j.by_id || {}, by_en: j.by_en || {} }; }).catch(() => {});
+const isPlaceholderName = n => !n || /^hero\s*\d+$/i.test(String(n).trim());
+function heroName(h) {
+  const byId = HERO_NAMES.by_id[String(h.id)];
+  if (byId) return byId;
+  if (!isPlaceholderName(h.name)) return HERO_NAMES.by_en[h.name] || h.name;
+  return `英雄${h.id ?? "?"}`;
+}
 const SLOT_JA = { helmet: "頭", gloves: "手", armor: "胴", boots: "足" };
 const teamPower = p => (p.heroes || []).reduce((a, h) => a + (Number(h.power) || 0), 0);
 function avatar(url, name, cls = "av") {
@@ -621,15 +687,15 @@ function avatar(url, name, cls = "av") {
 function heroChip(h) {
   const troop = h.gear?.find(g => g.troop_label)?.troop_label;
   return `<div class="hero">
-    ${avatar(h.icon, h.name, "hicon")}
-    <div class="hmeta"><b>${esc(h.name ?? "#" + h.id)}</b>
+    ${avatar(h.icon, heroName(h), "hicon")}
+    <div class="hmeta"><b title="ID ${esc(h.id)}">${esc(heroName(h))}</b>
       <span>Lv${esc(h.level ?? "–")}${h.stars != null ? ` ★${esc(h.stars)}` : ""}${troop ? ` ${esc((TROOP_JA[troop] || troop).charAt(0))}` : ""}</span>
       <span><span class="num">${jp(h.power)}</span>${h.exclusive_gear_level ? ` 専${esc(h.exclusive_gear_level)}` : ""}</span></div>
   </div>`;
 }
 function gearDetail(h) {
   const gear = (h.gear || []).map(g => `<span class="g${g.red ? " red" : ""}">${esc(SLOT_JA[g.slot] || g.slot)}+${esc(g.enhancement_level ?? 0)}${g.refine_level ? `<small>錬${esc(g.refine_level)}</small>` : ""}</span>`).join("");
-  return `<div class="gd"><b>${esc(h.name ?? "#" + h.id)}</b>${h.exclusive_gear ? `<span class="dim">専用 ${esc(h.exclusive_gear.name ?? "")} Lv${esc(h.exclusive_gear.level ?? "")}</span>` : ""}<div>${gear || `<span class="dim">装備情報なし</span>`}</div></div>`;
+  return `<div class="gd"><b>${esc(heroName(h))}</b>${h.exclusive_gear ? `<span class="dim">専用 ${esc(h.exclusive_gear.name ?? "")} Lv${esc(h.exclusive_gear.level ?? "")}</span>` : ""}<div>${gear || `<span class="dim">装備情報なし</span>`}</div></div>`;
 }
 function renderHeroCompare(box, kids, data) {
   const cols = kids.map((k, i) => {
@@ -654,7 +720,7 @@ function renderHeroCompare(box, kids, data) {
         <td class="r${mark(c.ex, "ex")}"><span class="num">${c.ex ? c.ex.toFixed(1) : "–"}</span></td>
         <td class="dim hs">${c.d ? ago(c.d.updated_at) : "対象外"}</td></tr>`).join("")}</tbody>
     </table></div>
-    <p class="dim" style="margin-top:6px">編成戦力＝防衛編成の英雄の戦力の合計。英雄の表記：★＝星、盾/槍/弓＝兵種、専＝専用装備Lv。オレンジ色はその項目で一番高い王国です。</p>
+    <p class="dim" style="margin-top:6px">編成戦力＝防衛編成の英雄の戦力の合計。英雄の表記：★＝星、盾/槍/弓＝兵種、専＝専用装備Lv。英雄名が「英雄50031」のように番号で出るときは<a href="#/heroes">英雄名の設定</a>で名前を付けられます。オレンジ色はその項目で一番高い王国です。</p>
     <h2>上位10人の防衛編成</h2>
     <div class="cmpgrid herogrid">${cols.map(c => `<section class="cmpcol">
       <h3><a href="#/state/${c.k}">#${c.k}</a></h3>
@@ -669,6 +735,40 @@ function renderHeroCompare(box, kids, data) {
     </section>`).join("")}</div>`;
 }
 
+// ---------- 英雄名の設定 ----------
+async function viewHeroNames() {
+  await heroNamesReady;
+  const meta = await load("meta.json");
+  const files = await Promise.all((meta?.hero_states || []).map(k => load(`heroes/${k}.json`)));
+  const seen = new Map(); // id -> { api, icon, count }
+  for (const f of files) for (const p of f?.players || []) for (const h of p.heroes || []) {
+    const id = String(h.id); const e = seen.get(id) || { api: h.name, icon: h.icon, count: 0 };
+    e.count++; seen.set(id, e);
+  }
+  const ids = [...seen.keys()].sort((a, b) => seen.get(b).count - seen.get(a).count);
+  app.innerHTML = `
+    <h1>英雄名の設定</h1>
+    <p class="sub">APIが新しい英雄の名前を返さず「Hero 50031」のような番号になることがあります。下の欄に日本語名を入れ、「設定ファイル用にコピー」を押して、GitHubの <code>public/hero-names.json</code> の中身を置き換えると、全員の画面に反映されます。</p>
+    ${ids.length ? `<div class="tablewrap"><table><thead><tr><th>アイコン</th><th>ID</th><th>APIの名前</th><th>表示する名前</th><th class="r">登場数</th></tr></thead><tbody>
+      ${ids.map(id => { const e = seen.get(id); return `<tr><td>${avatar(e.icon, e.api, "hicon")}</td><td class="num">${id}</td><td>${esc(e.api ?? "–")}</td>
+        <td><input type="text" class="hn-in" data-id="${id}" data-api="${esc(e.api ?? "")}" name="hero_label_${id}" ${SEARCH_ATTRS} value="${esc(HERO_NAMES.by_id[id] || (!isPlaceholderName(e.api) ? (HERO_NAMES.by_en[e.api] || "") : ""))}" placeholder="例：ナタリア"></td>
+        <td class="r num">${e.count}</td></tr>`; }).join("")}
+      </tbody></table></div>
+      <p><button type="button" class="more" id="copyNames">設定ファイル用にコピー</button> <span class="dim" id="copyMsg"></span></p>
+      <textarea id="namesOut" readonly rows="8" style="width:100%;font-family:monospace;font-size:12px" hidden></textarea>`
+    : `<p class="note">英雄データがまだありません。英雄の取得対象の王国（config.json の hero_states）のデータが入ると、ここに一覧が出ます。</p>`}`;
+  const btnCopy = app.querySelector("#copyNames");
+  if (!btnCopy) return;
+  btnCopy.onclick = async () => {
+    const by_id = { ...HERO_NAMES.by_id };
+    app.querySelectorAll(".hn-in").forEach(i => { const v = i.value.trim(); if (v) by_id[i.dataset.id] = v; else delete by_id[i.dataset.id]; });
+    const json = JSON.stringify({ by_id, by_en: HERO_NAMES.by_en }, null, 2);
+    const out = app.querySelector("#namesOut"); out.value = json; out.hidden = false;
+    try { await navigator.clipboard.writeText(json); app.querySelector("#copyMsg").textContent = "コピーしました。GitHubで貼り付けてください。"; }
+    catch { out.select(); app.querySelector("#copyMsg").textContent = "下の内容を選択してコピーしてください。"; }
+  };
+}
+
 // ---------- ルーティング ----------
 async function route() {
   const parts = location.hash.replace(/^#\/?/, "").split("/").map(decodeURIComponent);
@@ -676,8 +776,9 @@ async function route() {
   if (parts[0] === "state" && parts[1]) await viewState(parts[1]);
   else if (parts[0] === "alliance" && parts[1] && parts[2]) await viewAlliance(parts[1], parts[2]);
   else if (parts[0] === "compare") await viewCompare(parts[1], parts[2]);
+  else if (parts[0] === "heroes") await viewHeroNames();
   else await viewStates();
-  const t = { state: `王国 #${parts[1]}`, alliance: `[${parts[2]}] 王国 #${parts[1]}`, compare: "地底探検 王国比較" }[parts[0]];
+  const t = { state: `王国 #${parts[1]}`, alliance: `[${parts[2]}] 王国 #${parts[1]}`, compare: "王国比較", heroes: "英雄名の設定" }[parts[0]];
   document.title = (t ? t + " | " : "") + "WoS 王国データ";
 }
 load("meta.json").then(m => {

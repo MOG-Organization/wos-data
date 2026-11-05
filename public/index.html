@@ -668,10 +668,22 @@ async function viewCompare(param, modeParam) {
 }
 
 // ---------- 英雄（防衛編成）の比較 ----------
+const ADMIN_NAME = "くに"; // 英雄データの追加をお願いする相手（サイトの管理人）
 const TROOP_JA = { Infantry: "盾兵", Lancer: "槍兵", Marksman: "弓兵" };
 // 英雄名：hero-names.json（IDごとの日本語名・英語名ごとの日本語名）で置き換える
 let HERO_NAMES = { by_id: {}, by_en: {}, icons: {}, icon_base: "" };
-const heroNamesReady = fetch("hero-names.json", { cache: "no-cache" }).then(r => r.ok ? r.json() : null).then(j => { if (j) HERO_NAMES = { by_id: j.by_id || {}, by_en: j.by_en || {}, icons: j.icons || {}, icon_base: j.icon_base || "" }; }).catch(() => {});
+// hero-db.json（公式Wikiから自動作成）を土台に、hero-names.json（手で付けた名前）で上書きする
+const getJSON = u => fetch(u, { cache: "no-cache" }).then(r => r.ok ? r.json() : null).catch(() => null);
+const heroNamesReady = Promise.all([getJSON("hero-db.json"), getJSON("hero-names.json")]).then(([db, man]) => {
+  const by_id = {}, icons = {};
+  for (const [id, h] of Object.entries(db?.heroes || {})) {
+    if (h.ja || h.en) by_id[id] = h.ja || h.en;
+    icons[id] = { hero: h.icons?.hero || null, gear: h.icons?.gear || null };
+  }
+  for (const [id, n] of Object.entries(man?.by_id || {})) if (n) by_id[id] = n;
+  for (const [id, ic] of Object.entries(man?.icons || {})) icons[id] = { ...icons[id], ...Object.fromEntries(Object.entries(ic).filter(([, v]) => v)) };
+  HERO_NAMES = { by_id, by_en: man?.by_en || {}, icons, icon_base: man?.icon_base || db?.icon_base || "" };
+});
 // アイコン：APIが返せばそれを使い、無ければ hero-names.json の公式Wiki画像を使う
 const iconUrl = p => !p ? null : /^https?:/.test(p) ? p : HERO_NAMES.icon_base + p;
 const heroIcon = h => h.icon || iconUrl(HERO_NAMES.icons[String(h.id)]?.hero);
@@ -748,7 +760,7 @@ function renderHeroCompare(box, kids, data) {
     <h2>上位10人の防衛編成</h2>
     <div class="cmpgrid herogrid">${cols.map(c => `<section class="cmpcol">
       <h3><a href="#/state/${c.k}">#${c.k}</a></h3>
-      ${!c.d ? `<p class="note">この王国は英雄情報の取得対象外です。config.json の hero_states に王国番号を追加すると、次回の更新から取得されます。</p>`
+      ${!c.d ? `<p class="note">この王国の英雄データはまだありません🧊<br>どうしても見たい人は、管理人の${esc(ADMIN_NAME)}にこっそりお願いしてみてください。機嫌が良ければ、翌朝には届いているかも…🔥</p>`
         : c.players.map(p => `<article class="pcard">
           <div class="phead">${avatar(p.avatar_url, p.nick_name)}
             <div><b>${esc(p.nick_name)}</b>${p.alliance?.abbr ? ` <span class="dim">[${esc(p.alliance.abbr)}]</span>` : ""}

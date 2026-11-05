@@ -23,5 +23,67 @@
     "Jeronimo": "ジェロニモ",
     "Molly": "ジャスミン",
     "Zinman": "ジンマン"
+  },
+  "icon_base": "https://gom-s3-user-avatar.s3.us-west-2.amazonaws.com/wp-content/uploads/",
+  "_icons_source": "公式Wiki（whiteoutsurvival.wiki）の英雄一覧・各英雄ページで使われている画像のURL。hero=顔アイコン、gear=専用装備アイコン。画像の権利はCentury Gamesにあります。",
+  "icons": {
+    "50009": {
+      "hero": "2023/05/natalia.png",
+      "gear": "2024/03/equipment_icon_1050009.png"
+    },
+    "50011": {
+      "hero": "2023/05/jeronimo.png",
+      "gear": "2024/01/equipment_icon_1050011.png"
+    },
+    "50019": {
+      "hero": "2023/11/wuming.jpg",
+      "gear": "2024/01/equipment_icon_1050019.png"
+    },
+    "50021": {
+      "hero": "2023/05/flint.png",
+      "gear": "2024/01/equipment_icon_1050021.png"
+    },
+    "50023": {
+      "hero": "2023/09/ahmos.png",
+      "gear": "2024/01/equipment_icon_1050023.png"
+    },
+    "50024": {
+      "hero": "2023/09/1690429616489_3.jpg",
+      "gear": "2024/01/equipment_icon_1050024.png"
+    },
+    "50025": {
+      "hero": "2023/09/1690429616480_2.jpg",
+      "gear": "2024/01/equipment_icon_1050025.png"
+    },
+    "50026": {
+      "hero": "2023/09/1690429616472_1.jpg",
+      "gear": "2024/01/equipment_icon_1050026.png"
+    },
+    "50030": {
+      "hero": "2023/11/rene.jpg",
+      "gear": "2024/01/equipment_icon_1050030.png"
+    },
+    "50031": {
+      "hero": "2023/11/wayne.jpg",
+      "gear": "2024/01/equipment_icon_1050031.png"
+    },
+    "50059": {
+      "hero": "2026/03/hero_headpic_50059.png"
+    },
+    "50060": {
+      "hero": "2026/03/hero_headpic_50060.png"
+    },
+    "50061": {
+      "hero": "2026/03/hero_headpic_50061.png"
+    },
+    "50062": {
+      "hero": "2026/07/hero_headpic_50062.png"
+    },
+    "50063": {
+      "hero": "2026/07/hero_headpic_50063.png"
+    },
+    "50064": {
+      "hero": "2026/07/hero_headpic_50064.png"
+    }
   }
 }

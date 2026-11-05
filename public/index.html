@@ -149,6 +149,7 @@
   details summary { cursor: pointer; color: var(--link); }
   .gd { padding: 6px 0; border-bottom: 1px dashed var(--rime); }
   .gd .dim { margin-left: 6px; }
+  .gd .gicon { width: 22px; height: 22px; vertical-align: middle; margin-right: 6px; border-radius: 4px; }
   .gd .g { display: inline-block; margin: 3px 6px 0 0; padding: 1px 6px; border: 1px solid var(--rime); border-radius: 4px; }
   .gd .g.red { border-color: var(--ember); color: var(--ember); }
   .gd small { margin-left: 3px; color: var(--steel); }
@@ -206,7 +207,7 @@
     .cmpgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
     .cmpgrid.herogrid { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 10px; -webkit-overflow-scrolling: touch; }
     .cmpgrid.herogrid .cmpcol { flex: 0 0 92%; scroll-snap-align: start; }
-    .herogrid .hicon { display: none; }
+    .herogrid .hicon { width: 26px; height: 26px; }
     .herogrid .hero { padding: 5px 6px; }
     .modeseg a { padding: 8px 14px; }
     .cmpcol { padding: 8px; }
@@ -669,8 +670,12 @@ async function viewCompare(param, modeParam) {
 // ---------- 英雄（防衛編成）の比較 ----------
 const TROOP_JA = { Infantry: "盾兵", Lancer: "槍兵", Marksman: "弓兵" };
 // 英雄名：hero-names.json（IDごとの日本語名・英語名ごとの日本語名）で置き換える
-let HERO_NAMES = { by_id: {}, by_en: {} };
-const heroNamesReady = fetch("hero-names.json", { cache: "no-cache" }).then(r => r.ok ? r.json() : null).then(j => { if (j) HERO_NAMES = { by_id: j.by_id || {}, by_en: j.by_en || {} }; }).catch(() => {});
+let HERO_NAMES = { by_id: {}, by_en: {}, icons: {}, icon_base: "" };
+const heroNamesReady = fetch("hero-names.json", { cache: "no-cache" }).then(r => r.ok ? r.json() : null).then(j => { if (j) HERO_NAMES = { by_id: j.by_id || {}, by_en: j.by_en || {}, icons: j.icons || {}, icon_base: j.icon_base || "" }; }).catch(() => {});
+// アイコン：APIが返せばそれを使い、無ければ hero-names.json の公式Wiki画像を使う
+const iconUrl = p => !p ? null : /^https?:/.test(p) ? p : HERO_NAMES.icon_base + p;
+const heroIcon = h => h.icon || iconUrl(HERO_NAMES.icons[String(h.id)]?.hero);
+const gearIcon = h => iconUrl(HERO_NAMES.icons[String(h.id)]?.gear);
 const isPlaceholderName = n => !n || /^hero\s*\d+$/i.test(String(n).trim());
 function heroName(h) {
   const byId = HERO_NAMES.by_id[String(h.id)];
@@ -701,7 +706,7 @@ function avatar(url, name, cls = "av") {
 function heroChip(h) {
   const troop = troopOf(h);
   return `<div class="hero">
-    ${avatar(h.icon, heroName(h), "hicon")}
+    ${avatar(heroIcon(h), heroName(h), "hicon")}
     <div class="hmeta"><b title="ID ${esc(h.id)}">${esc(heroName(h))}</b>
       <span>Lv${esc(h.level ?? "–")}${h.stars != null ? ` ★${esc(h.stars)}` : ""}${troop ? ` ${esc((TROOP_JA[troop] || troop).charAt(0))}` : ""}</span>
       <span>${Number(h.power) ? `<span class="num">${jp(h.power)}</span> ` : ""}${h.exclusive_gear_level ? `専用Lv${esc(h.exclusive_gear_level)}` : "専用なし"}</span></div>
@@ -709,7 +714,8 @@ function heroChip(h) {
 }
 function gearDetail(h) {
   const gear = (h.gear || []).map(g => `<span class="g${g.red ? " red" : ""}">${esc(slotJa(g))} +${esc(g.enhancement_level ?? 0)}${g.refine_level ? `<small>錬成${esc(g.refine_level)}</small>` : ""}</span>`).join("");
-  return `<div class="gd"><b>${esc(heroName(h))}</b>${h.exclusive_gear ? `<span class="dim">専用装備${isPlaceholderGear(h.exclusive_gear.name) ? "" : " " + esc(h.exclusive_gear.name)} Lv${esc(h.exclusive_gear.level ?? "")}</span>` : ""}<div>${gear || `<span class="dim">装備情報なし</span>`}</div></div>`;
+  const gi = gearIcon(h);
+  return `<div class="gd">${gi ? `<img class="gicon" src="${esc(gi)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ""}<b>${esc(heroName(h))}</b>${h.exclusive_gear ? `<span class="dim">専用装備${isPlaceholderGear(h.exclusive_gear.name) ? "" : " " + esc(h.exclusive_gear.name)} Lv${esc(h.exclusive_gear.level ?? "")}</span>` : ""}<div>${gear || `<span class="dim">装備情報なし</span>`}</div></div>`;
 }
 function renderHeroCompare(box, kids, data) {
   const cols = kids.map((k, i) => {
@@ -769,8 +775,8 @@ async function viewHeroNames() {
   app.innerHTML = `
     <h1>英雄名の設定</h1>
     <p class="sub">APIが英雄の名前を返さず番号だけのため、ここで名前を付けます。「使っている人の例」の領主の防衛編成をゲーム内で見ると、どの番号がどの英雄か確かめられます。下の欄に日本語名を入れ、「設定ファイル用にコピー」を押して、GitHubの <code>public/hero-names.json</code> の中身を置き換えると、全員の画面に反映されます。</p>
-    ${ids.length ? `<div class="tablewrap"><table><thead><tr><th>ID</th><th>兵種</th><th>表示する名前</th><th class="r">登場数</th><th>使っている人の例</th></tr></thead><tbody>
-      ${ids.map(id => { const e = seen.get(id); return `<tr><td class="num">${id}</td><td>${esc(TROOP_JA[e.troop] || e.troop || "–")}</td>
+    ${ids.length ? `<div class="tablewrap"><table><thead><tr><th></th><th>ID</th><th>兵種</th><th>表示する名前</th><th class="r">登場数</th><th>使っている人の例</th></tr></thead><tbody>
+      ${ids.map(id => { const e = seen.get(id); return `<tr><td>${avatar(e.icon || iconUrl(HERO_NAMES.icons[id]?.hero), HERO_NAMES.by_id[id] || e.api, "hicon")}</td><td class="num">${id}</td><td>${esc(TROOP_JA[e.troop] || e.troop || "–")}</td>
         <td><input type="text" class="hn-in" data-id="${id}" data-api="${esc(e.api ?? "")}" name="hero_label_${id}" ${SEARCH_ATTRS} value="${esc(HERO_NAMES.by_id[id] || (!isPlaceholderName(e.api) ? (HERO_NAMES.by_en[e.api] || "") : ""))}" placeholder="例：ナタリア"></td>
         <td class="r num">${e.count}</td><td class="dim">${esc(e.ex.join("、"))}</td></tr>`; }).join("")}
       </tbody></table></div>

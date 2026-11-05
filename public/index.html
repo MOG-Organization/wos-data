@@ -678,24 +678,38 @@ function heroName(h) {
   if (!isPlaceholderName(h.name)) return HERO_NAMES.by_en[h.name] || h.name;
   return `英雄${h.id ?? "?"}`;
 }
-const SLOT_JA = { helmet: "頭", gloves: "手", armor: "胴", boots: "足" };
+// 英雄装備の部位（APIは英語で返すので和名にする）
+const SLOT_JA = { helmet: "兜", hat: "兜", gloves: "手袋", glove: "手袋", armor: "鎧", armour: "鎧", chest: "鎧", boots: "靴", boot: "靴", shoes: "靴" };
+const slotJa = g => { const k = String(g.slot ?? g.name ?? "").trim().toLowerCase(); return SLOT_JA[k] || g.slot || g.name || "装備"; };
 const teamPower = p => (p.heroes || []).reduce((a, h) => a + (Number(h.power) || 0), 0);
+// 装備の強化値・錬成・赤装備の数（英雄戦力が空のときの比較材料）
+function gearStats(players) {
+  const gs = players.flatMap(p => (p.heroes || []).flatMap(h => h.gear || []));
+  const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
+  return {
+    enh: avg(gs.map(g => Number(g.enhancement_level) || 0)),
+    ref: avg(gs.map(g => Number(g.refine_level) || 0)),
+    red: players.length ? gs.filter(g => g.red).length / players.length : 0,
+  };
+}
+const troopOf = h => h.gear?.find(g => g.troop_label)?.troop_label;
+const isPlaceholderGear = n => !n || /^exclusive\s*\d+$/i.test(String(n).trim());
 function avatar(url, name, cls = "av") {
   const ch = esc(String(name || "?").trim().charAt(0) || "?");
   return `<span class="${cls}">${ch}${url ? `<img src="${esc(url)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ""}</span>`;
 }
 function heroChip(h) {
-  const troop = h.gear?.find(g => g.troop_label)?.troop_label;
+  const troop = troopOf(h);
   return `<div class="hero">
     ${avatar(h.icon, heroName(h), "hicon")}
     <div class="hmeta"><b title="ID ${esc(h.id)}">${esc(heroName(h))}</b>
       <span>Lv${esc(h.level ?? "–")}${h.stars != null ? ` ★${esc(h.stars)}` : ""}${troop ? ` ${esc((TROOP_JA[troop] || troop).charAt(0))}` : ""}</span>
-      <span><span class="num">${jp(h.power)}</span>${h.exclusive_gear_level ? ` 専${esc(h.exclusive_gear_level)}` : ""}</span></div>
+      <span>${Number(h.power) ? `<span class="num">${jp(h.power)}</span> ` : ""}${h.exclusive_gear_level ? `専用Lv${esc(h.exclusive_gear_level)}` : "専用なし"}</span></div>
   </div>`;
 }
 function gearDetail(h) {
-  const gear = (h.gear || []).map(g => `<span class="g${g.red ? " red" : ""}">${esc(SLOT_JA[g.slot] || g.slot)}+${esc(g.enhancement_level ?? 0)}${g.refine_level ? `<small>錬${esc(g.refine_level)}</small>` : ""}</span>`).join("");
-  return `<div class="gd"><b>${esc(heroName(h))}</b>${h.exclusive_gear ? `<span class="dim">専用 ${esc(h.exclusive_gear.name ?? "")} Lv${esc(h.exclusive_gear.level ?? "")}</span>` : ""}<div>${gear || `<span class="dim">装備情報なし</span>`}</div></div>`;
+  const gear = (h.gear || []).map(g => `<span class="g${g.red ? " red" : ""}">${esc(slotJa(g))} +${esc(g.enhancement_level ?? 0)}${g.refine_level ? `<small>錬成${esc(g.refine_level)}</small>` : ""}</span>`).join("");
+  return `<div class="gd"><b>${esc(heroName(h))}</b>${h.exclusive_gear ? `<span class="dim">専用装備${isPlaceholderGear(h.exclusive_gear.name) ? "" : " " + esc(h.exclusive_gear.name)} Lv${esc(h.exclusive_gear.level ?? "")}</span>` : ""}<div>${gear || `<span class="dim">装備情報なし</span>`}</div></div>`;
 }
 function renderHeroCompare(box, kids, data) {
   const cols = kids.map((k, i) => {
@@ -703,24 +717,28 @@ function renderHeroCompare(box, kids, data) {
     const players = (d?.players || []).slice().sort((a, b) => (a.labyrinth_rank ?? 999) - (b.labyrinth_rank ?? 999));
     const tp = players.map(teamPower).filter(Boolean);
     const exs = players.flatMap(p => (p.heroes || []).map(h => Number(h.exclusive_gear_level) || 0));
-    return { k, d, players, avg: tp.length ? tp.reduce((a, b) => a + b, 0) / tp.length : 0, max: Math.max(0, ...tp),
-      ex: exs.length ? exs.reduce((a, b) => a + b, 0) / exs.length : 0 };
+    const g = gearStats(players);
+    return { k, d, players, avg: tp.length ? tp.reduce((a, b) => a + b, 0) / tp.length : 0,
+      ex: exs.length ? exs.reduce((a, b) => a + b, 0) / exs.length : 0, enh: g.enh, ref: g.ref, red: g.red };
   });
+  const hasPower = cols.some(c => c.avg);
   const best = key => Math.max(0, ...cols.map(c => c[key] || 0));
   const mark = (v, key) => v && v === best(key) ? " win" : "";
   box.innerHTML = `
     <h2>まとめ</h2>
     <div class="tablewrap"><table>
-      <thead><tr><th>王国</th><th class="r">人数</th><th class="r">編成戦力の平均</th><th class="r">最強編成</th><th class="r">専用装備 平均Lv</th><th class="hs">更新</th></tr></thead>
+      <thead><tr><th>王国</th><th class="r hs">人数</th>${hasPower ? `<th class="r">編成戦力の平均</th>` : ""}<th class="r">専用装備<br>平均Lv</th><th class="r">装備強化<br>平均</th><th class="r">錬成<br>平均</th><th class="r">赤装備<br>1人あたり</th><th class="hs">更新</th></tr></thead>
       <tbody>${cols.map(c => `<tr>
         <td><a href="#/state/${c.k}"><span class="num">#${c.k}</span></a></td>
-        <td class="r"><span class="num">${c.players.length || "–"}</span></td>
-        <td class="r${mark(c.avg, "avg")}"><span class="num">${c.avg ? jp(Math.round(c.avg)) : "–"}</span></td>
-        <td class="r${mark(c.max, "max")}"><span class="num">${c.max ? jp(c.max) : "–"}</span></td>
+        <td class="r hs"><span class="num">${c.players.length || "–"}</span></td>
+        ${hasPower ? `<td class="r${mark(c.avg, "avg")}"><span class="num">${c.avg ? jp(Math.round(c.avg)) : "–"}</span></td>` : ""}
         <td class="r${mark(c.ex, "ex")}"><span class="num">${c.ex ? c.ex.toFixed(1) : "–"}</span></td>
+        <td class="r${mark(c.enh, "enh")}"><span class="num">${c.enh ? "+" + c.enh.toFixed(0) : "–"}</span></td>
+        <td class="r${mark(c.ref, "ref")}"><span class="num">${c.ref ? c.ref.toFixed(1) : "–"}</span></td>
+        <td class="r${mark(c.red, "red")}"><span class="num">${c.red ? c.red.toFixed(1) : "–"}</span></td>
         <td class="dim hs">${c.d ? ago(c.d.updated_at) : "対象外"}</td></tr>`).join("")}</tbody>
     </table></div>
-    <p class="dim" style="margin-top:6px">編成戦力＝防衛編成の英雄の戦力の合計。英雄の表記：★＝星、盾/槍/弓＝兵種、専＝専用装備Lv。英雄名が「英雄50031」のように番号で出るときは<a href="#/heroes">英雄名の設定</a>で名前を付けられます。オレンジ色はその項目で一番高い王国です。</p>
+    <p class="dim" style="margin-top:6px">上位10人の防衛編成から集計。装備強化・錬成は英雄装備1つあたりの平均、赤装備は1人あたりの個数です。英雄の表記：★＝星、盾/槍/弓＝兵種。英雄名が「英雄50031」のように番号で出るときは<a href="#/heroes">英雄名の設定</a>で名前を付けられます。オレンジ色はその項目で一番高い王国です。</p>
     <h2>上位10人の防衛編成</h2>
     <div class="cmpgrid herogrid">${cols.map(c => `<section class="cmpcol">
       <h3><a href="#/state/${c.k}">#${c.k}</a></h3>
@@ -728,7 +746,7 @@ function renderHeroCompare(box, kids, data) {
         : c.players.map(p => `<article class="pcard">
           <div class="phead">${avatar(p.avatar_url, p.nick_name)}
             <div><b>${esc(p.nick_name)}</b>${p.alliance?.abbr ? ` <span class="dim">[${esc(p.alliance.abbr)}]</span>` : ""}
-              <div class="dim">地底探検 ${esc(p.labyrinth_rank ?? "–")}位（${int(p.labyrinth)}）・戦力 ${jp(p.power)}・編成 ${jp(teamPower(p))}</div></div></div>
+              <div class="dim">地底探検 ${esc(p.labyrinth_rank ?? "–")}位（${int(p.labyrinth)}）・戦力 ${jp(p.power)}${teamPower(p) ? `・編成 ${jp(teamPower(p))}` : ""}</div></div></div>
           <div class="heroes">${(p.heroes || []).slice().sort((a, b) => (a.position ?? 9) - (b.position ?? 9)).map(heroChip).join("") || `<span class="dim">防衛編成の情報なし</span>`}</div>
           ${(p.heroes || []).length ? `<details><summary>装備の詳細</summary>${p.heroes.map(gearDetail).join("")}</details>` : ""}
         </article>`).join("")}
@@ -742,17 +760,19 @@ async function viewHeroNames() {
   const files = await Promise.all((meta?.hero_states || []).map(k => load(`heroes/${k}.json`)));
   const seen = new Map(); // id -> { api, icon, count }
   for (const f of files) for (const p of f?.players || []) for (const h of p.heroes || []) {
-    const id = String(h.id); const e = seen.get(id) || { api: h.name, icon: h.icon, count: 0 };
-    e.count++; seen.set(id, e);
+    const id = String(h.id); const e = seen.get(id) || { api: h.name, icon: h.icon, count: 0, troop: null, ex: [] };
+    e.count++; e.troop = e.troop || troopOf(h);
+    if (e.ex.length < 2) e.ex.push(`${p.nick_name}（#${f.kid}）`);
+    seen.set(id, e);
   }
   const ids = [...seen.keys()].sort((a, b) => seen.get(b).count - seen.get(a).count);
   app.innerHTML = `
     <h1>英雄名の設定</h1>
-    <p class="sub">APIが新しい英雄の名前を返さず「Hero 50031」のような番号になることがあります。下の欄に日本語名を入れ、「設定ファイル用にコピー」を押して、GitHubの <code>public/hero-names.json</code> の中身を置き換えると、全員の画面に反映されます。</p>
-    ${ids.length ? `<div class="tablewrap"><table><thead><tr><th>アイコン</th><th>ID</th><th>APIの名前</th><th>表示する名前</th><th class="r">登場数</th></tr></thead><tbody>
-      ${ids.map(id => { const e = seen.get(id); return `<tr><td>${avatar(e.icon, e.api, "hicon")}</td><td class="num">${id}</td><td>${esc(e.api ?? "–")}</td>
+    <p class="sub">APIが英雄の名前を返さず番号だけのため、ここで名前を付けます。「使っている人の例」の領主の防衛編成をゲーム内で見ると、どの番号がどの英雄か確かめられます。下の欄に日本語名を入れ、「設定ファイル用にコピー」を押して、GitHubの <code>public/hero-names.json</code> の中身を置き換えると、全員の画面に反映されます。</p>
+    ${ids.length ? `<div class="tablewrap"><table><thead><tr><th>ID</th><th>兵種</th><th>表示する名前</th><th class="r">登場数</th><th>使っている人の例</th></tr></thead><tbody>
+      ${ids.map(id => { const e = seen.get(id); return `<tr><td class="num">${id}</td><td>${esc(TROOP_JA[e.troop] || e.troop || "–")}</td>
         <td><input type="text" class="hn-in" data-id="${id}" data-api="${esc(e.api ?? "")}" name="hero_label_${id}" ${SEARCH_ATTRS} value="${esc(HERO_NAMES.by_id[id] || (!isPlaceholderName(e.api) ? (HERO_NAMES.by_en[e.api] || "") : ""))}" placeholder="例：ナタリア"></td>
-        <td class="r num">${e.count}</td></tr>`; }).join("")}
+        <td class="r num">${e.count}</td><td class="dim">${esc(e.ex.join("、"))}</td></tr>`; }).join("")}
       </tbody></table></div>
       <p><button type="button" class="more" id="copyNames">設定ファイル用にコピー</button> <span class="dim" id="copyMsg"></span></p>
       <textarea id="namesOut" readonly rows="8" style="width:100%;font-family:monospace;font-size:12px" hidden></textarea>`

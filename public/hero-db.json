@@ -1,0 +1,779 @@
+{
+ "updated_at": "2026-11-06T00:31:49.618Z",
+ "_source": "公式Wiki（whiteoutsurvival.wiki）の各英雄ページから自動作成。ID＝専用装備画像 equipment_icon_10XXXXX またはスキル画像 hero_skill_icon_XXXXXn の番号。日本語名＝同ページの日本語版リンク先の名前。画像の権利は Century Games にあります。",
+ "icon_base": "https://gom-s3-user-avatar.s3.us-west-2.amazonaws.com/wp-content/uploads/",
+ "heroes": {
+  "50000": {
+   "id": "50000",
+   "en": "Eugene",
+   "ja": "ユージーン",
+   "troop": "Infantry",
+   "icons": {
+    "hero": "2023/05/eugene.png",
+    "gear": null
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/eugene/",
+   "conflict": false
+  },
+  "50001": {
+   "id": "50001",
+   "en": "Smith",
+   "ja": "スミス",
+   "troop": "Infantry",
+   "icons": {
+    "hero": "2023/05/smith.png",
+    "gear": null
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/smith/",
+   "conflict": false
+  },
+  "50002": {
+   "id": "50002",
+   "en": "Charlie",
+   "ja": "チャーリー",
+   "troop": "Lancer",
+   "icons": {
+    "hero": "2023/05/charlie.png",
+    "gear": null
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/charlie/",
+   "conflict": false
+  },
+  "50003": {
+   "id": "50003",
+   "en": "Cloris",
+   "ja": "クラリス",
+   "troop": "Marksman",
+   "icons": {
+    "hero": "2023/05/cloris.png",
+    "gear": null
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/cloris-2/",
+   "conflict": false
+  },
+  "50004": {
+   "id": "50004",
+   "en": "Sergey",
+   "ja": "セルゲイ",
+   "troop": "Infantry",
+   "icons": {
+    "hero": "2023/05/sergey.png",
+    "gear": null
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/sergey/",
+   "conflict": false
+  },
+  "50005": {
+   "id": "50005",
+   "en": "Patrick",
+   "ja": "パトリック",
+   "troop": "Lancer",
+   "icons": {
+    "hero": "2023/05/patrick.png",
+    "gear": null
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/patrick/",
+   "conflict": false
+  },
+  "50006": {
+   "id": "50006",
+   "en": "Bahiti",
+   "ja": "バシティ",
+   "troop": "Marksman",
+   "icons": {
+    "hero": "2023/05/bahiti.png",
+    "gear": null
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/bahiti/",
+   "conflict": false
+  },
+  "50007": {
+   "id": "50007",
+   "en": "Jessie",
+   "ja": "ジェシー",
+   "troop": "Lancer",
+   "icons": {
+    "hero": "2023/05/jessie.png",
+    "gear": null
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/jessie/",
+   "conflict": false
+  },
+  "50008": {
+   "id": "50008",
+   "en": "Gina",
+   "ja": "ジーナ",
+   "troop": "Marksman",
+   "icons": {
+    "hero": "2023/05/Gina.png",
+    "gear": null
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/gina/",
+   "conflict": false
+  },
+  "50009": {
+   "id": "50009",
+   "en": "Natalia",
+   "ja": "ナタリア",
+   "troop": "Infantry",
+   "icons": {
+    "hero": "2023/05/natalia.png",
+    "gear": "2024/03/equipment_icon_1050009.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/natalia/",
+   "conflict": false
+  },
+  "50010": {
+   "id": "50010",
+   "en": "Logan",
+   "ja": "ローガン",
+   "troop": "Infantry",
+   "icons": {
+    "hero": "2023/05/logan.png",
+    "gear": "2024/01/equipment_icon_1050010.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/logan/",
+   "conflict": false
+  },
+  "50011": {
+   "id": "50011",
+   "en": "Jeronimo",
+   "ja": "ジェロニモ",
+   "troop": "Infantry",
+   "icons": {
+    "hero": "2023/05/jeronimo.png",
+    "gear": "2024/01/equipment_icon_1050011.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/jeronimo/",
+   "conflict": false
+  },
+  "50012": {
+   "id": "50012",
+   "en": "Molly",
+   "ja": "ジャスミン",
+   "troop": "Lancer",
+   "icons": {
+    "hero": "2023/05/molly.png",
+    "gear": "2024/01/equipment_icon_1050012.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/molly/",
+   "conflict": false
+  },
+  "50013": {
+   "id": "50013",
+   "en": "Philly",
+   "ja": "フレンダー",
+   "troop": "Lancer",
+   "icons": {
+    "hero": "2023/05/philly.png",
+    "gear": "2024/01/equipment_icon_1050013.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/philly/",
+   "conflict": false
+  },
+  "50014": {
+   "id": "50014",
+   "en": "Reina",
+   "ja": "レイナ",
+   "troop": "Lancer",
+   "icons": {
+    "hero": "2023/09/1690429616516_7.jpg",
+    "gear": "2024/01/equipment_icon_1050014.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/reina/",
+   "conflict": false
+  },
+  "50015": {
+   "id": "50015",
+   "en": "Gordon",
+   "ja": "ゴードン",
+   "troop": "Lancer",
+   "icons": {
+    "hero": "2024/03/20240222_1.jpg",
+    "gear": "2024/01/equipment_icon_1050015.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/gordon/",
+   "conflict": false
+  },
+  "50016": {
+   "id": "50016",
+   "en": "Mia",
+   "ja": "ミア",
+   "troop": "Lancer",
+   "icons": {
+    "hero": "2023/05/mia.png",
+    "gear": "2024/01/equipment_icon_1050016.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/mia/",
+   "conflict": false
+  },
+  "50017": {
+   "id": "50017",
+   "en": "Zinman",
+   "ja": "ジンマン",
+   "troop": "Marksman",
+   "icons": {
+    "hero": "2023/05/zinman.png",
+    "gear": "2024/01/equipment_icon_1050017.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/zinman/",
+   "conflict": false
+  },
+  "50018": {
+   "id": "50018",
+   "en": "Alonso",
+   "ja": "アロンゾ",
+   "troop": "Marksman",
+   "icons": {
+    "hero": "2023/05/alonso.png",
+    "gear": "2024/01/equipment_icon_1050018.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/alonso/",
+   "conflict": false
+  },
+  "50019": {
+   "id": "50019",
+   "en": "Wu Ming",
+   "ja": "無名",
+   "troop": "Infantry",
+   "icons": {
+    "hero": "2023/11/wuming.jpg",
+    "gear": "2024/01/equipment_icon_1050019.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/wu-ming/",
+   "conflict": false
+  },
+  "50020": {
+   "id": "50020",
+   "en": "Greg",
+   "ja": "グレッグ",
+   "troop": "Marksman",
+   "icons": {
+    "hero": "2023/05/greg.png",
+    "gear": "2024/01/equipment_icon_1050020.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/greg/",
+   "conflict": false
+  },
+  "50021": {
+   "id": "50021",
+   "en": "Flint",
+   "ja": "フリント",
+   "troop": "Infantry",
+   "icons": {
+    "hero": "2023/05/flint.png",
+    "gear": "2024/01/equipment_icon_1050021.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/flint/",
+   "conflict": false
+  },
+  "50022": {
+   "id": "50022",
+   "en": "Lynn",
+   "ja": "リオン",
+   "troop": "Marksman",
+   "icons": {
+    "hero": "2023/09/1690429616507_5.jpg",
+    "gear": null
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/lynn/",
+   "conflict": false
+  },
+  "50023": {
+   "id": "50023",
+   "en": "Ahmose",
+   "ja": "アクモス",
+   "troop": "Infantry",
+   "icons": {
+    "hero": "2023/09/ahmos.png",
+    "gear": "2024/01/equipment_icon_1050023.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/ahmose/",
+   "conflict": false
+  },
+  "50024": {
+   "id": "50024",
+   "en": "Hector",
+   "ja": "ヘクトー",
+   "troop": "Infantry",
+   "icons": {
+    "hero": "2023/09/1690429616489_3.jpg",
+    "gear": "2024/01/equipment_icon_1050024.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/hector/",
+   "conflict": false
+  },
+  "50025": {
+   "id": "50025",
+   "en": "Norah",
+   "ja": "ノラ",
+   "troop": "Lancer",
+   "icons": {
+    "hero": "2023/09/1690429616480_2.jpg",
+    "gear": "2024/01/equipment_icon_1050025.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/gwen/",
+   "conflict": false
+  },
+  "50026": {
+   "id": "50026",
+   "en": "Gwen",
+   "ja": "グエン",
+   "troop": "Marksman",
+   "icons": {
+    "hero": "2023/09/1690429616472_1.jpg",
+    "gear": "2024/01/equipment_icon_1050026.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/gwen-2/",
+   "conflict": false
+  },
+  "50027": {
+   "id": "50027",
+   "en": "Seo-yoon",
+   "ja": "ソユン",
+   "troop": "Marksman",
+   "icons": {
+    "hero": "2023/10/2.jpg",
+    "gear": null
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/seo-yoon/",
+   "conflict": false
+  },
+  "50028": {
+   "id": "50028",
+   "en": "Jasser",
+   "ja": "ジャセル",
+   "troop": "Marksman",
+   "icons": {
+    "hero": "2023/10/1.jpg",
+    "gear": null
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/jasser/",
+   "conflict": false
+  },
+  "50029": {
+   "id": "50029",
+   "en": "Lumak Bokan",
+   "ja": "ルム・ボーガン",
+   "troop": "Lancer",
+   "icons": {
+    "hero": "2024/05/3.png",
+    "gear": null
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/lumak-bokan/",
+   "conflict": false
+  },
+  "50030": {
+   "id": "50030",
+   "en": "Renee",
+   "ja": "レネ",
+   "troop": "Lancer",
+   "icons": {
+    "hero": "2023/11/rene.jpg",
+    "gear": "2024/01/equipment_icon_1050030.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/renee/",
+   "conflict": false
+  },
+  "50031": {
+   "id": "50031",
+   "en": "Wayne",
+   "ja": "ウェイン",
+   "troop": "Marksman",
+   "icons": {
+    "hero": "2023/11/wayne.jpg",
+    "gear": "2024/01/equipment_icon_1050031.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/wayne/",
+   "conflict": false
+  },
+  "50032": {
+   "id": "50032",
+   "en": "Edith",
+   "ja": "エディス",
+   "troop": "Infantry",
+   "icons": {
+    "hero": "2024/03/20240222_2.jpg",
+    "gear": null
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/edith/",
+   "conflict": false
+  },
+  "50033": {
+   "id": "50033",
+   "en": "Bradley",
+   "ja": "ブラッドリー",
+   "troop": "Marksman",
+   "icons": {
+    "hero": "2024/03/20240222_3.jpg",
+    "gear": "2024/01/equipment_icon_1050033.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/bradley/",
+   "conflict": false
+  },
+  "50034": {
+   "id": "50034",
+   "en": "Gatot",
+   "ja": "ガト",
+   "troop": "Infantry",
+   "icons": {
+    "hero": "2024/07/5.jpg",
+    "gear": "2024/05/equipment_icon_1050034.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/gatot/",
+   "conflict": false
+  },
+  "50035": {
+   "id": "50035",
+   "en": "Sonya",
+   "ja": "ソニヤ",
+   "troop": "Lancer",
+   "icons": {
+    "hero": "2024/07/6.jpg",
+    "gear": "2024/05/equipment_icon_1050035.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/sonya/",
+   "conflict": false
+  },
+  "50036": {
+   "id": "50036",
+   "en": "Hendrik",
+   "ja": "ヘンドリック",
+   "troop": "Marksman",
+   "icons": {
+    "hero": "2024/07/7.jpg",
+    "gear": "2024/05/equipment_icon_1050036.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/hendrik/",
+   "conflict": false
+  },
+  "50038": {
+   "id": "50038",
+   "en": "Magnus",
+   "ja": "マグヌス",
+   "troop": "Infantry",
+   "icons": {
+    "hero": "2024/08/magnus.jpg",
+    "gear": "2024/08/equipment_icon_1050038.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/magnus/",
+   "conflict": false
+  },
+  "50039": {
+   "id": "50039",
+   "en": "Fred",
+   "ja": "フレッド",
+   "troop": "Lancer",
+   "icons": {
+    "hero": "2024/08/fred.jpg",
+    "gear": "2024/08/equipment_icon_1050039.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/fred/",
+   "conflict": false
+  },
+  "50040": {
+   "id": "50040",
+   "en": "Xura",
+   "ja": "シュラ",
+   "troop": "Marksman",
+   "icons": {
+    "hero": "2024/08/xura.jpg",
+    "gear": "2024/08/equipment_icon_1050040.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/xura/",
+   "conflict": false
+  },
+  "50041": {
+   "id": "50041",
+   "en": "Gregory",
+   "ja": "グレゴリー",
+   "troop": "Infantry",
+   "icons": {
+    "hero": "2024/12/gregory350.jpg",
+    "gear": "2024/12/equipment_icon_1050041.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/gregory/",
+   "conflict": false
+  },
+  "50042": {
+   "id": "50042",
+   "en": "Freya",
+   "ja": "フレイヤ",
+   "troop": "Lancer",
+   "icons": {
+    "hero": "2024/12/freya350.jpg",
+    "gear": "2024/12/equipment_icon_1050042.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/freya/",
+   "conflict": false
+  },
+  "50043": {
+   "id": "50043",
+   "en": "Blanchette",
+   "ja": "ブランシュ",
+   "troop": "Marksman",
+   "icons": {
+    "hero": "2024/12/blanchette350.jpg",
+    "gear": "2024/12/equipment_icon_1050043.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/blanchette/",
+   "conflict": false
+  },
+  "50044": {
+   "id": "50044",
+   "en": "Eleonora",
+   "ja": "エリオノーラ",
+   "troop": "Infantry",
+   "icons": {
+    "hero": "2025/03/eleonora.jpg",
+    "gear": "2025/03/equipment_icon_1050044.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/eleonora/",
+   "conflict": false
+  },
+  "50045": {
+   "id": "50045",
+   "en": "Lloyd",
+   "ja": "ロイド",
+   "troop": "Lancer",
+   "icons": {
+    "hero": "2025/03/Lloyd.jpg",
+    "gear": "2025/03/equipment_icon_1050045.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/lloyd/",
+   "conflict": false
+  },
+  "50046": {
+   "id": "50046",
+   "en": "Rufus",
+   "ja": "ルーファス",
+   "troop": "Marksman",
+   "icons": {
+    "hero": "2025/03/rufus.jpg",
+    "gear": "2025/03/equipment_icon_1050046.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/rufus/",
+   "conflict": false
+  },
+  "50047": {
+   "id": "50047",
+   "en": "Hervor",
+   "ja": "ヘルヴィル",
+   "troop": "Infantry",
+   "icons": {
+    "hero": "2025/05/20250519%E8%8B%B1%E9%9B%84%E5%A4%B4%E5%83%8FHervor-1.jpg",
+    "gear": "2025/05/21085234/equipment_icon_1050047.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/hervor/",
+   "conflict": false
+  },
+  "50048": {
+   "id": "50048",
+   "en": "Karol",
+   "ja": "カロール",
+   "troop": "Lancer",
+   "icons": {
+    "hero": "2025/05/20250519%E8%8B%B1%E9%9B%84%E5%A4%B4%E5%83%8Fkarol-1.jpg",
+    "gear": "2025/05/21085235/equipment_icon_1050048.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/karol/",
+   "conflict": false
+  },
+  "50049": {
+   "id": "50049",
+   "en": "Ligeia",
+   "ja": "ライジーア",
+   "troop": "Marksman",
+   "icons": {
+    "hero": "2025/05/20250519%E8%8B%B1%E9%9B%84%E5%A4%B4%E5%83%8FLigeia-1.jpg",
+    "gear": "2025/05/21085236/equipment_icon_1050049.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/ligeia/",
+   "conflict": false
+  },
+  "50050": {
+   "id": "50050",
+   "en": "Gisela",
+   "ja": "ギーゼラ",
+   "troop": "Infantry",
+   "icons": {
+    "hero": "2025/08/20250519%E8%8B%B1%E9%9B%84%E5%A4%B4%E5%83%8Fgisela.jpg",
+    "gear": "2025/08/equipment_icon_1050050.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/gisela/",
+   "conflict": false
+  },
+  "50051": {
+   "id": "50051",
+   "en": "Flora",
+   "ja": "フローラ",
+   "troop": "Lancer",
+   "icons": {
+    "hero": "2025/08/20250519%E8%8B%B1%E9%9B%84%E5%A4%B4%E5%83%8FFlora.jpg",
+    "gear": "2025/08/equipment_icon_1050051.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/flora/",
+   "conflict": false
+  },
+  "50052": {
+   "id": "50052",
+   "en": "Vulcanus",
+   "ja": "ウルカヌス",
+   "troop": "Marksman",
+   "icons": {
+    "hero": "2025/08/20250519%E8%8B%B1%E9%9B%84%E5%A4%B4%E5%83%8Fvulcanus.jpg",
+    "gear": "2025/08/equipment_icon_1050052.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/vulcanus/",
+   "conflict": false
+  },
+  "50053": {
+   "id": "50053",
+   "en": "Elif",
+   "ja": "エリーフ",
+   "troop": "Infantry",
+   "icons": {
+    "hero": "2026/01/%E8%89%BE%E4%B8%BD%E8%8A%99.png",
+    "gear": "2026/01/equipment_icon_1050053.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/elif/",
+   "conflict": false
+  },
+  "50054": {
+   "id": "50054",
+   "en": "Dominic",
+   "ja": "ドミニク",
+   "troop": "Lancer",
+   "icons": {
+    "hero": "2026/01/%E5%A4%9A%E7%B1%B3%E5%B0%BC%E5%85%8B.png",
+    "gear": "2026/01/equipment_icon_1050054.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/dominic/",
+   "conflict": false
+  },
+  "50055": {
+   "id": "50055",
+   "en": "Cara",
+   "ja": "カーラ",
+   "troop": "Marksman",
+   "icons": {
+    "hero": "2026/01/%E5%8D%A1%E6%8B%89.png",
+    "gear": "2026/01/equipment_icon_1050055.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/cara/",
+   "conflict": false
+  },
+  "50056": {
+   "id": "50056",
+   "en": "Hank",
+   "ja": "ハンク",
+   "troop": "Infantry",
+   "icons": {
+    "hero": "2026/01/%E6%B1%89%E5%85%8B.png",
+    "gear": "2026/01/equipment_icon_1050056.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/hank-2/",
+   "conflict": false
+  },
+  "50057": {
+   "id": "50057",
+   "en": "Estrella",
+   "ja": "エステラ",
+   "troop": "Lancer",
+   "icons": {
+    "hero": "2026/01/%E8%89%BE%E6%96%AF%E9%BB%9B%E6%8B%89%EF%BC%88%E7%94%BB%E5%AE%B6%EF%BC%89.png",
+    "gear": "2026/01/equipment_icon_1050057.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/estrella/",
+   "conflict": false
+  },
+  "50058": {
+   "id": "50058",
+   "en": "Viveca",
+   "ja": "ヴィヴィカ",
+   "troop": "Marksman",
+   "icons": {
+    "hero": "2026/01/%E7%BB%B4%E8%96%87%E5%8D%A1.png",
+    "gear": "2026/01/equipment_icon_1050058.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/viveca-2/",
+   "conflict": false
+  },
+  "50059": {
+   "id": "50059",
+   "en": "Seigel",
+   "ja": null,
+   "troop": "Infantry",
+   "icons": {
+    "hero": "2026/03/hero_headpic_50059.png",
+    "gear": "2026/03/equipment_icon_1050059.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/seigel-6/",
+   "conflict": false
+  },
+  "50060": {
+   "id": "50060",
+   "en": "Ursar",
+   "ja": "ウルタール",
+   "troop": "Lancer",
+   "icons": {
+    "hero": "2026/03/hero_headpic_50060.png",
+    "gear": "2026/03/equipment_icon_1050060.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/ursar/",
+   "conflict": false
+  },
+  "50061": {
+   "id": "50061",
+   "en": "Aisling",
+   "ja": "アシュリン",
+   "troop": "Marksman",
+   "icons": {
+    "hero": "2026/03/hero_headpic_50061.png",
+    "gear": "2026/03/equipment_icon_1050061.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/aisling/",
+   "conflict": false
+  },
+  "50062": {
+   "id": "50062",
+   "en": "Aiden",
+   "ja": "エイダン",
+   "troop": "Infantry",
+   "icons": {
+    "hero": "2026/07/hero_headpic_50062.png",
+    "gear": "2026/03/equipment_icon_1050062.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/aiden/",
+   "conflict": false
+  },
+  "50063": {
+   "id": "50063",
+   "en": "Bertha",
+   "ja": "ベルサ",
+   "troop": "Lancer",
+   "icons": {
+    "hero": "2026/07/hero_headpic_50063.png",
+    "gear": "2026/07/equipment_icon_1050063.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/bertha/",
+   "conflict": false
+  },
+  "50064": {
+   "id": "50064",
+   "en": "Eleanor",
+   "ja": "エリノ",
+   "troop": "Marksman",
+   "icons": {
+    "hero": "2026/07/hero_headpic_50064.png",
+    "gear": "2026/07/equipment_icon_1050064.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/eleanor/",
+   "conflict": false
+  }
+ },
+ "problems": [
+  "IDなし: https://www.whiteoutsurvival.wiki/heroes/feed/",
+  "IDなし: https://www.whiteoutsurvival.wiki/heroes/ling-shuang/"
+ ]
+}

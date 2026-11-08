@@ -210,6 +210,13 @@
   .pheroes { display: flex; gap: 4px; align-items: center; }
   .pheroes .dim { margin-left: 4px; font-size: 11px; }
   .tggrp.warn { color: var(--ember); font-weight: 700; }
+  .notes { margin: 0 0 8px; display: grid; gap: 6px; }
+  .notebtn { display: inline-flex; gap: 4px; align-items: center; justify-self: start; padding: 6px 12px; border: 1px solid var(--ember); border-radius: 999px; font-size: 13px; color: var(--ember); text-decoration: none; }
+  .notebtn:hover { text-decoration: none; background: var(--ember-soft); }
+  .noteedit summary { font-size: 12px; color: var(--link); cursor: pointer; }
+  .noteedit input { font: inherit; font-size: 16px; width: 100%; margin: 6px 0 2px; padding: 5px 8px; border: 1px solid var(--rime); border-radius: 5px; background: var(--bg); color: var(--ink); }
+  .noteedit .dim { font-size: 11px; }
+  .sharebar { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin: -4px 0 12px; }
   label.check { font-size: 14px; display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
   .jp { display: inline-block; min-width: 3.2em; text-align: right; }
   .jp.hi { color: var(--ember); font-weight: 700; }
@@ -866,7 +873,7 @@ function predictRank(rows, v) {
 }
 const MIG_KEY = "wos-migrate-people";
 const MIG_PASS_KEY = "wos-migrate-pass";
-// 暗号化された移民データを合言葉で復号（ブラウザ標準の Web Crypto。中身はこの端末の中だけで扱う）
+// 暗号化された移民データをパスフレーズで復号（ブラウザ標準の Web Crypto。中身はこの端末の中だけで扱う）
 async function decryptMigrants(enc, pass) {
   const b64 = t => Uint8Array.from(atob(t), c => c.charCodeAt(0));
   const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pass), "PBKDF2", false, ["deriveKey"]);
@@ -878,18 +885,66 @@ function loadPeople(fromData) {
   let saved = [];
   try { saved = JSON.parse(localStorage.getItem(MIG_KEY) || "[]"); } catch {}
   const base = (fromData?.people || []).filter(p => !p.error).map(p => ({ ...p, name: p.label, power: p.power, transfer: p.state_transfer_score, lab: p.labyrinth, auto: true }));
-  const list = base.length ? base : [{ name: "1人目" }, { name: "2人目" }];
-  return list.map((p, i) => ({ ...p, ...(p.auto ? {} : Object.fromEntries(Object.entries(saved[i] || {}).filter(([, v]) => v != null))) }));
+  if (base.length) return base;
+  const list = saved.length ? saved : [{ name: "1人目" }, { name: "2人目" }];
+  return list.map((p, i) => ({ name: `${i + 1}人目`, ...Object.fromEntries(Object.entries(p || {}).filter(([, v]) => v != null)) }));
 }
+// ---- メモの共有リンク（パスフレーズで暗号化してURLに入れる。サーバーには何も送らない） ----
+const b64u = bytes => btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const unb64u = t => Uint8Array.from(atob(t.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((t.length + 3) % 4)), c => c.charCodeAt(0));
+async function pipeBytes(bytes, stream) { return new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(stream)).arrayBuffer()); }
+async function shareKey(pass, salt) {
+  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pass), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey({ name: "PBKDF2", salt, iterations: 200000, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+}
+const DC = "https://discord.com/channels/";
+async function packNotes(notes, pass) {
+  const text = Object.entries(notes).map(([k, u]) => `${k} ${u.startsWith(DC) ? "~" + u.slice(DC.length) : u}`).join("\n");
+  const z = await pipeBytes(new TextEncoder().encode(text), new CompressionStream("deflate-raw"));
+  const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, await shareKey(pass, salt), z));
+  return b64u(new Uint8Array([...salt, ...iv, ...ct]));
+}
+async function unpackNotes(blob, pass) {
+  const all = unb64u(blob), salt = all.slice(0, 16), iv = all.slice(16, 28), ct = all.slice(28);
+  const z = new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv }, await shareKey(pass, salt), ct));
+  const text = new TextDecoder().decode(await pipeBytes(z, new DecompressionStream("deflate-raw")));
+  const out = {};
+  for (const line of text.split("\n")) {
+    const m = line.match(/^(\d{1,5}) (\S+)$/); if (!m) continue;
+    const u = m[2].startsWith("~") ? DC + m[2].slice(1) : m[2];
+    if (/^https:\/\/[^\s"'<>]+$/.test(u)) out[m[1]] = u;
+  }
+  return out;
+}
+// URLの末尾「&n=…」を取り出す（取り込み後は消す）
+function takeNoteBlob() {
+  const m = location.hash.match(/[&?]n=([A-Za-z0-9_-]+)/);
+  if (!m) return null;
+  history.replaceState(null, "", location.pathname + location.search + location.hash.replace(/[&?]n=[A-Za-z0-9_-]+/, ""));
+  return m[1];
+}
+
+// 王国ごとのメモのリンク：暗号化データ（共有）＋この端末だけのもの
+const NOTE_KEY = "wos-migrate-notes";
+const safeUrl = u => /^https:\/\/[^\s"'<>]+$/.test(String(u || "")) ? u : null;
+function localNotes() { try { return JSON.parse(localStorage.getItem(NOTE_KEY) || "{}"); } catch { return {}; } }
+function saveLocalNote(kid, url) { const n = localNotes(); if (url) n[kid] = url; else delete n[kid]; try { localStorage.setItem(NOTE_KEY, JSON.stringify(n)); } catch {} }
+function notesFor(kid, secret) {
+  const shared = (secret?.notes?.[String(kid)] || []).filter(x => safeUrl(x.url)).map(x => ({ ...x, shared: true }));
+  const mine = safeUrl(localNotes()[String(kid)]);
+  return mine && !shared.some(x => x.url === mine) ? [...shared, { url: mine, label: null, shared: false }] : shared;
+}
+const noteLabel = u => /discord(app)?\.com|discord\.gg/.test(u) ? "Discordのメモ" : "メモ";
 const balanceLabel = d => d == null ? "–" : d >= 40 ? `一強（${d}%）` : d >= 25 ? `やや一強（${d}%）` : `拮抗（${d}%）`;
 
 async function viewMigrate(param) {
   const cands = [...new Set((param || "").split(",").filter(x => /^\d+$/.test(x)))];
   const [list, lang, meta, tg, enc] = await Promise.all([load("states.json"), load("lang.json"), load("meta.json"), getJSON("transfer-groups.json"), load("migrants.enc.json")]);
-  // 暗号化データ：合言葉を覚えている端末なら自動で復号
+  // 暗号化データ：パスフレーズを覚えている端末なら自動で復号
   if (enc && !viewMigrate.secret) {
     let saved = null; try { saved = localStorage.getItem(MIG_PASS_KEY); } catch {}
-    if (saved) { try { viewMigrate.secret = await decryptMigrants(enc, saved); } catch { try { localStorage.removeItem(MIG_PASS_KEY); } catch {} } }
+    if (saved) { try { viewMigrate.secret = await decryptMigrants(enc, saved); viewMigrate.pass = saved; } catch { try { localStorage.removeItem(MIG_PASS_KEY); } catch {} } }
   }
   const migr = viewMigrate.secret || null;
   if (!list) { app.innerHTML = `<p class="note">データがまだありません。</p>`; return; }
@@ -917,10 +972,11 @@ async function viewMigrate(param) {
     <h1>移民検討</h1>
     <p class="sub">日本人が多く雰囲気の良い王国を探すためのページです。☆で候補リストに入れた王国はURLに入るので、そのリンクを送り合えば同じ候補を見られます。このページはどこからもリンクしていません。</p>
     <section id="tg"></section>
-    <h2>2人の現在地</h2>
-    ${enc && !migr ? `<div class="passbox"><label>合言葉<input type="password" id="mpass" name="mig_pass_search" ${SEARCH_ATTRS} placeholder="合言葉を入力"></label>
+    <h2>メンバーの現在地</h2>
+    ${enc && !migr ? `<div class="passbox"><label>パスフレーズ<input type="password" id="mpass" name="mig_pass_search" ${SEARCH_ATTRS} placeholder="パスフレーズを入力"></label>
       <label class="check"><input type="checkbox" id="mremember"> この端末で覚える</label><button type="button" class="more" id="mopen" style="margin:0">開く</button><span class="dim" id="mmsg"></span></div>` : ""}
-    ${migr ? `<p class="dim">暗号化データを表示中（${ago(migr.updated_at)} 更新）。<button type="button" class="linkbtn" id="mforget">この端末から合言葉を消す</button></p>` : ""}
+    ${!enc ? `<p class="note">暗号化データ（メンバーの自動入力）はまだありません。GitHub の Secrets に MIGRANT_IDS と MIGRANT_PASSPHRASE を設定して Run workflow を実行すると、ここにパスフレーズの入力欄が出ます。それまでは下の欄に手で入力して使えます。</p>` : ""}
+    ${migr ? `<p class="dim">暗号化データを表示中（${ago(migr.updated_at)} 更新）。<button type="button" class="linkbtn" id="mforget">この端末からパスフレーズを消す</button></p>` : ""}
     <div class="people">${people.map((p, i) => `<div class="person">
       <input type="text" class="pname" name="mig_label_${i}" ${SEARCH_ATTRS} data-i="${i}" data-k="name" value="${esc(p.name)}" aria-label="表示名" maxlength="20" ${p.auto ? "readonly" : ""}>
       ${p.auto ? `<div class="pinfo">${p.kid ? `今いる王国 <a href="./#/state/${p.kid}" target="_blank" rel="noopener">#${p.kid}</a>${groupOf(p.kid) ? `（グループ${tg.groups.indexOf(groupOf(p.kid)) + 1}）` : ""}` : ""}${p.alliance?.abbr ? `・[${esc(p.alliance.abbr)}]` : ""}${p.furnace_level ? `・溶鉱炉Lv${esc(p.furnace_level)}` : ""}
@@ -929,16 +985,23 @@ async function viewMigrate(param) {
       <label>戦力<input type="text" inputmode="decimal" name="mig_power_${i}" ${SEARCH_ATTRS} data-i="${i}" data-k="power" value="${p.power ? jp(p.power) : ""}" placeholder="例：6.2億" ${p.auto ? "readonly" : ""}></label>
       <label>移民スコア<input type="text" inputmode="decimal" name="mig_transfer_${i}" ${SEARCH_ATTRS} data-i="${i}" data-k="transfer" value="${p.transfer ? jp(p.transfer) : ""}" placeholder="例：250万" ${p.auto ? "readonly" : ""}></label>
       <label>地底探検<input type="text" inputmode="numeric" name="mig_lab_${i}" ${SEARCH_ATTRS} data-i="${i}" data-k="lab" value="${p.lab ?? ""}" placeholder="例：1500" ${p.auto ? "readonly" : ""}></label>
+      ${!p.auto && people.length > 1 ? `<button type="button" class="linkbtn mdel" data-i="${i}">このメンバーを外す</button>` : ""}
     </div>`).join("")}</div>
+    ${!migr ? `<p><button type="button" class="more" id="madd" style="margin:0">＋ メンバーを追加</button></p>` : ""}
     <p class="dim">入力した数値はこの端末（ブラウザ）にだけ保存され、サイトやGitHubには送られません。ゲーム内のプロフィールで確認して入力してください。</p>
 
+    <div id="noteImportMsg"></div>
     <h2>候補リスト${cands.length ? `（${cands.length}）` : ""}</h2>
+    <div class="sharebar">${viewMigrate.pass
+      ? `<button type="button" class="more" id="shareNotes" style="margin:0">📤 メモの共有リンクを作る</button><span class="dim" id="shareMsg">この端末のメモを全部まとめて、パスフレーズで暗号化したリンクにします。Discordに貼って共有してください。</span>`
+      : `<span class="dim">パスフレーズで開くと、メモを共有リンクにしてメンバーに送れます。</span>`}</div>
     <div id="cands">${cands.length ? "" : `<p class="note">下の一覧で☆を押すと、ここに候補が並びます。</p>`}</div>
 
     <h2>王国を探す</h2>
     <div class="filters">
       <label><span>日本語名 <b id="fjpv">${F.jp}</b>%以上</span><input type="range" id="fjp" min="0" max="100" step="5" value="${F.jp}"></label>
       <label class="check" style="align-self:end"><input type="checkbox" id="fgrp" ${F.inGroup ? "checked" : ""} ${group ? "" : "disabled"}> 移民グループ内（${group ? `${group[0]}〜${group[1]}` : "情報なし"}）だけ</label>
+      <label class="check" style="align-self:end"><input type="checkbox" id="fnote" ${F.noted ? "checked" : ""}> 📝 メモがある王国だけ</label>
       <label><span>開設からの日数</span><span class="rng"><input type="text" inputmode="numeric" id="fage1" name="age_min_search" ${SEARCH_ATTRS} value="${F.ageMin}" placeholder="下限">〜<input type="text" inputmode="numeric" id="fage2" name="age_max_search" ${SEARCH_ATTRS} value="${F.ageMax}" placeholder="上限"></span></label>
     </div>
     <p class="dim">日本語名＝その王国の個人戦力上位100人のうち、名前にひらがな・カタカナを含む人の割合（漢字だけ・ローマ字の名前は数えないため低めに出ます）。勢力バランス＝1位の同盟が上位10同盟の合計戦力に占める割合。どちらも詳細を取得済みの王国だけ表示されます。</p>
@@ -954,16 +1017,16 @@ async function viewMigrate(param) {
     const inGroupCount = group ? rows.filter(r => r.kid >= group[0] && r.kid <= group[1]).length : 0;
     tgBox.innerHTML = `<div class="tgbox ${state === "開催中" ? "live" : ""}">
       <div><b>移民イベント ${state}</b>　${fmt(tg.event.start)} 〜 ${fmt(tg.event.end)}（日本時間）${state === "開催中" ? `　<span class="tag">終了まで${left(end - now)}</span>` : ""}</div>
-      ${group ? `<div class="tggrp">${kidsForGroup.length > 1 ? `2人の今いる王国（${kidsForGroup.map(k => "#" + k).join("・")}）はどちらも` : `自王国 #${home.kid} は`} <b>グループ ${tg.groups.indexOf(group) + 1}（王国 ${group[0]}〜${group[1]}）</b>。移民できるのはこの範囲の王国だけです（データのある王国 ${inGroupCount}）。</div>`
-        : kidsForGroup.length > 1 && groupsAll.every(Boolean) ? `<div class="tggrp warn">2人の移民グループが違います（${kidsForGroup.map((k, j) => `#${k}＝グループ${tg.groups.indexOf(groupsAll[j]) + 1}`).join("、")}）。今回のイベントでは同じ王国へは移れません。</div>`
+      ${group ? `<div class="tggrp">${kidsForGroup.length > 1 ? `メンバーの今いる王国（${[...new Set(kidsForGroup)].map(k => "#" + k).join("・")}）はすべて` : `自王国 #${home.kid} は`} <b>グループ ${tg.groups.indexOf(group) + 1}（王国 ${group[0]}〜${group[1]}）</b>。移民できるのはこの範囲の王国だけです（データのある王国 ${inGroupCount}）。</div>`
+        : kidsForGroup.length > 1 && groupsAll.every(Boolean) ? `<div class="tggrp warn">メンバーの移民グループが分かれています（${kidsForGroup.map((k, j) => `#${k}＝グループ${tg.groups.indexOf(groupsAll[j]) + 1}`).join("、")}）。今回のイベントでは全員が同じ王国へ移ることはできません。</div>`
         : `<div class="tggrp">今いる王国の移民グループが今回の発表に含まれていません。</div>`}
       <ol class="phases">${(tg.event.phases || []).map(p => { const a = Date.parse(p.start), b = Date.parse(p.end); const cur = now >= a && now <= b;
         return `<li class="${cur ? "cur" : now > b ? "done" : ""}"><b>${esc(p.name)}</b><span>${fmt(p.start)} 〜 ${fmt(p.end)}</span>${cur ? `<span class="tag">いまここ・${left(b - now)}</span>` : ""}</li>`; }).join("")}</ol>
-      <p class="dim">出典：Century Games 公式サイトの告知（11月6日）。各段階の日付は過去の公式告知の日数（準備3日・招待2日・自由移民2日）に当てはめた目安です。移民の条件として、前回の移民から25日以上たっていること、移民先にキャラクターが4つ未満であること、大統領でないことなどがあります。正確なルールはゲーム内のイベント画面で確認してください。</p>
+      <p class="dim">出典：Century Games 公式サイトの告知（11月6日）。各段階の日付は過去の公式告知の日数（準備3日・招待2日・自由移民2日）に当てはめた目安です。移民の条件として、前回の移民から25日以上たっていること、移民先にキャラクターが4つ未満であること、執政官でないことなどがあります。正確なルールはゲーム内のイベント画面で確認してください。</p>
     </div>`;
   }
 
-  // 合言葉
+  // パスフレーズ
   const openBtn = app.querySelector("#mopen");
   if (openBtn) {
     const tryOpen = async () => {
@@ -971,18 +1034,41 @@ async function viewMigrate(param) {
       if (!pass) return;
       app.querySelector("#mmsg").textContent = "確認中…";
       try {
-        viewMigrate.secret = await decryptMigrants(enc, pass);
+        viewMigrate.secret = await decryptMigrants(enc, pass); viewMigrate.pass = pass;
         if (app.querySelector("#mremember").checked) { try { localStorage.setItem(MIG_PASS_KEY, pass); } catch {} }
         viewMigrate.drawn = false; route();
-      } catch { app.querySelector("#mmsg").textContent = "合言葉が違います"; }
+      } catch { app.querySelector("#mmsg").textContent = "パスフレーズが違います"; }
     };
     openBtn.onclick = tryOpen;
     app.querySelector("#mpass").onkeydown = e => { if (e.key === "Enter") tryOpen(); };
   }
   const forget = app.querySelector("#mforget");
-  if (forget) forget.onclick = () => { try { localStorage.removeItem(MIG_PASS_KEY); } catch {} viewMigrate.secret = null; route(); };
+  if (forget) forget.onclick = () => { try { localStorage.removeItem(MIG_PASS_KEY); } catch {} viewMigrate.secret = null; viewMigrate.pass = null; route(); };
 
-  // 2人の数値（手入力時）を保存
+  // 共有リンクで届いたメモを取り込む（パスフレーズで開いた後）
+  const importMsg = app.querySelector("#noteImportMsg");
+  if (viewMigrate.pendingNotes) {
+    if (!viewMigrate.pass) { importMsg.innerHTML = `<p class="note">共有されたメモが届いています。パスフレーズを入れて「開く」と取り込まれます。</p>`; }
+    else {
+      try {
+        const got = await unpackNotes(viewMigrate.pendingNotes, viewMigrate.pass);
+        const mine = localNotes(); let added = 0;
+        for (const [k, u] of Object.entries(got)) { if (mine[k] !== u) { mine[k] = u; added++; } }
+        try { localStorage.setItem(NOTE_KEY, JSON.stringify(mine)); } catch {}
+        importMsg.innerHTML = `<p class="note">共有リンクからメモを取り込みました（${Object.keys(got).length}件中 ${added}件が新規・更新）。</p>`;
+      } catch { importMsg.innerHTML = `<p class="note">共有リンクのメモを開けませんでした（パスフレーズが違うか、リンクが途中で切れています）。</p>`; }
+      viewMigrate.pendingNotes = null;
+    }
+  }
+
+  // メンバーの追加・削除（手入力時）
+  const savePeople = () => { try { localStorage.setItem(MIG_KEY, JSON.stringify(people.map(p => ({ name: p.name, power: p.power, transfer: p.transfer, lab: p.lab })))); } catch {} };
+  const redraw = () => { viewMigrate.drawn = false; route(); };
+  const addBtn = app.querySelector("#madd");
+  if (addBtn) addBtn.onclick = () => { people.push({ name: `${people.length + 1}人目` }); savePeople(); redraw(); };
+  app.querySelectorAll(".mdel").forEach(b => b.onclick = () => { people.splice(Number(b.dataset.i), 1); savePeople(); redraw(); });
+
+  // メンバーの数値（手入力時）を保存
   app.querySelectorAll(".person input:not([readonly])").forEach(inp => inp.onchange = () => {
     const i = Number(inp.dataset.i), k = inp.dataset.k;
     const v = k === "name" ? (inp.value.trim() || `${i + 1}人目`) : k === "lab" ? Number(inp.value) || null : parseJp(inp.value);
@@ -1000,10 +1086,11 @@ async function viewMigrate(param) {
       rows, initialSort: { key: "jp", dir: "desc" }, pageSize: 50,
       filter: () => r => (r.jp ?? -1) >= F.jp
         && (r.age_days == null || (r.age_days >= a1 && r.age_days <= a2)) && !kidsForGroup.map(String).includes(String(r.kid))
-        && (!F.inGroup || !group || (r.kid >= group[0] && r.kid <= group[1])),
+        && (!F.inGroup || !group || (r.kid >= group[0] && r.kid <= group[1]))
+        && (!F.noted || notesFor(r.kid, migr).length > 0),
       columns: [
         { key: "_star", label: "", sort: false, cell: r => star(r.kid) },
-        { key: "kid", label: "王国", cell: r => `<a href="./#/state/${r.kid}" target="_blank" rel="noopener"><span class="num">#${r.kid}</span></a>` },
+        { key: "kid", label: "王国", cell: r => `<a href="./#/state/${r.kid}" target="_blank" rel="noopener"><span class="num">#${r.kid}</span></a>${notesFor(r.kid, migr).length ? ` <span title="メモあり">📝</span>` : ""}` },
         { key: "jp", label: "日本語名", r: true, cell: r => jpBadge(r.jp) },
         { key: "dom", label: "勢力バランス", hs: true, cell: r => balanceLabel(r.dom) },
         { key: "_power", label: "総戦力", r: true, cell: r => `<span class="num">${jp(r._power)}</span>` },
@@ -1017,11 +1104,12 @@ async function viewMigrate(param) {
   const bindRange = (id, key) => { const el = app.querySelector("#" + id); el.oninput = () => { F[key] = Number(el.value); app.querySelector(`#${id}v`).textContent = el.value; drawList(); }; };
   bindRange("fjp", "jp");
   app.querySelector("#fgrp").onchange = e => { F.inGroup = e.target.checked; drawList(); };
+  app.querySelector("#fnote").onchange = e => { F.noted = e.target.checked; drawList(); };
   app.querySelector("#fage1").onchange = e => { F.ageMin = e.target.value; drawList(); };
   app.querySelector("#fage2").onchange = e => { F.ageMax = e.target.value; drawList(); };
   drawList();
 
-  // 候補リスト（詳細を読み込んで、2人が入った場合の順位などを表示）
+  // 候補リスト（詳細を読み込んで、メンバーが入った場合の順位などを表示）
   const candBox = app.querySelector("#cands");
   details = await Promise.all(cands.map(k => load(`states/${k}.json`)));
   function drawCands() {
@@ -1040,6 +1128,10 @@ async function viewMigrate(param) {
           <span>日本語名 <b>${s.jp != null ? s.jp + "%" : "–"}</b></span><span>${balanceLabel(s.dom)}</span>
           <span>総戦力 <b>${jp(s._power)}</b></span><span>開設 <b>${s.age_days != null ? int(s.age_days) + "日" : "–"}</b></span>
         </div>
+        <div class="notes">${notesFor(k, migr).map(n => `<a class="notebtn" href="${esc(n.url)}" target="_blank" rel="noopener noreferrer">📝 ${esc(n.label || noteLabel(n.url))}</a>`).join("")}
+          <details class="noteedit"><summary>${safeUrl(localNotes()[k]) ? "この端末のメモを変更" : "メモのリンクを追加"}</summary>
+            <input type="url" class="noteurl" data-k="${k}" name="note_url_${k}" ${SEARCH_ATTRS} placeholder="https://discord.com/channels/..." value="${esc(localNotes()[k] || "")}">
+            <span class="dim">Discordのメッセージやスレッドで「リンクをコピー」したURLを貼ります。この端末に保存され、「メモの共有リンクを作る」でメンバーに送れます。</span></details></div>
         ${!d ? `<p class="note">この王国の詳細はまだ取得されていません。順次取得されます。</p>` : `
         <table class="mini"><thead><tr><th>移民したら</th><th class="r">戦力</th><th class="r">移民スコア</th><th class="r">地底探検</th><th class="r hs">スコア比</th></tr></thead><tbody>
           ${people.map(p => `<tr><td>${esc(p.name)}</td><td class="r">${rk(predictRank(pp, p.power))}</td><td class="r">${rk(predictRank(tr, p.transfer))}</td><td class="r">${rk(predictRank(lab, p.lab))}</td>
@@ -1049,11 +1141,28 @@ async function viewMigrate(param) {
         <ol class="top10">${al.map((r, j) => `<li><span class="rk num">${j + 1}</span><span class="nm">[${esc(r.abbr)}] ${esc(r.name)}</span><span class="sc num">${jp(r.score)}<span class="dim">・${r.member_count ?? "–"}人</span></span></li>`).join("")}</ol>`}
       </section>`;
     }).join("")}</div>
-    <p class="dim">「移民したら」は、2人の数値をその王国の上位100人のランキングに入れたときの順位です。スコア比は、自分の移民スコア÷王国の移民スコア（上位100人の合計）で、公式の説明では高いほど必要な移民パスが増えます。正確なパス数とリーディング王国かどうかは、移民イベントの画面でしか確定しません。</p>
+    <p class="dim">「移民したら」は、メンバーの数値をその王国の上位100人のランキングに入れたときの順位です。スコア比は、自分の移民スコア÷王国の移民スコア（上位100人の合計）で、公式の説明では高いほど必要な移民パスが増えます。正確なパス数とリーディング王国かどうかは、移民イベントの画面でしか確定しません。</p>
     <p><a href="./#/compare/${[meta?.watch_states?.[0], ...cands].filter(Boolean).join(",")}" target="_blank" rel="noopener">候補を地底探検・英雄で比較する（通常のサイトで開きます）→</a></p>`;
     candBox.onclick = e => { const b = e.target.closest(".star"); if (!b) return; setCands(cands.filter(x => x !== b.dataset.k)); };
+    candBox.querySelectorAll(".noteurl").forEach(inp => inp.onchange = () => {
+      const v = inp.value.trim();
+      if (v && !safeUrl(v)) { inp.setCustomValidity("https:// から始まるURLを貼ってください"); inp.reportValidity(); return; }
+      inp.setCustomValidity(""); saveLocalNote(inp.dataset.k, v || null); drawCands(); drawList();
+    });
   }
   drawCands();
+  const shareBtn = app.querySelector("#shareNotes");
+  if (shareBtn) shareBtn.onclick = async () => {
+    const notes = localNotes();
+    const n = Object.keys(notes).length;
+    const msg = app.querySelector("#shareMsg");
+    if (!n) { msg.textContent = "この端末にはまだメモがありません。候補カードの「メモのリンクを追加」から登録してください。"; return; }
+    const blob = await packNotes(notes, viewMigrate.pass);
+    const url = location.origin + location.pathname + "#/" + cands.join(",") + "&n=" + blob;
+    try { await navigator.clipboard.writeText(url); msg.textContent = `メモ${n}件の共有リンクをコピーしました（${url.length}文字）。Discordに貼ってください。`; }
+    catch { msg.innerHTML = `下のリンクをコピーしてください（メモ${n}件）<br><textarea readonly rows="3" style="width:100%;font-size:12px">${esc(url)}</textarea>`; }
+    if (url.length > 1900) msg.textContent += " ※Discordの1メッセージの文字数上限（2000字）に近いので、貼れない場合はメモを分けてください。";
+  };
   viewMigrate.drawn = true;
 }
 
@@ -1061,8 +1170,11 @@ async function viewMigrate(param) {
 async function route() {
   const parts = location.hash.replace(/^#\/?/, "").split("/").map(decodeURIComponent);
   if (MODE === "migrate") { // 移民検討ページ：ほかの画面には行かない
+    const blob = takeNoteBlob();
+    if (blob) viewMigrate.pendingNotes = blob;
     if (!viewMigrate.drawn) window.scrollTo(0, 0);
-    await viewMigrate(parts[0] === "migrate" ? parts[1] : parts[0]);
+    const p0 = (parts[0] === "migrate" ? parts[1] : parts[0]) || "";
+    await viewMigrate(p0.split(/[&?]/)[0]);
     document.title = "移民検討";
     return;
   }

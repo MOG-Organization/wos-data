@@ -197,6 +197,32 @@
   .tgbox { background: var(--surface); border: 1px solid var(--rime); border-radius: 8px; padding: 12px 14px; margin: 0 0 8px; display: grid; gap: 8px; font-size: 14px; }
   .tgbox.live { border-color: var(--ember); }
   .tggrp b { color: var(--ember); }
+  .score { font-family: "Saira Condensed", "Arial Narrow", sans-serif; font-weight: 700; font-size: 17px; }
+  .score.hi { color: var(--ember); } .score.mid { color: var(--ink); } .score.lo { color: var(--steel); }
+  .score.big { font-size: 26px; margin-left: auto; margin-right: 6px; } .score small { font-size: 12px; margin-left: 1px; }
+  .st { margin-left: 6px; font-size: 10px; padding: 0 5px; border-radius: 3px; border: 1px solid var(--rime); white-space: nowrap; }
+  .st-2 { border-color: var(--ember); color: var(--ember); } .st-4 { text-decoration: line-through; color: var(--steel); }
+  .rankno { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--ember-soft); font-weight: 700; font-size: 13px; margin-right: 8px; }
+  .candhead { gap: 0; }
+  .evalbox { border: 1px solid var(--rime); border-radius: 6px; padding: 8px 10px; margin: 6px 0 10px; display: grid; gap: 4px; }
+  .evst { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--steel); }
+  .evst select { font: inherit; font-size: 16px; padding: 3px 6px; border: 1px solid var(--rime); border-radius: 5px; background: var(--bg); color: var(--ink); }
+  .evrow { display: grid; grid-template-columns: 6.5em auto 1fr; gap: 8px; align-items: center; font-size: 13px; }
+  .evl { color: var(--ink); }
+  .pts { color: var(--ember); letter-spacing: 1px; font-size: 11px; } .pts .off { color: var(--rime); }
+  .evw { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .stars button { font: inherit; font-size: 18px; line-height: 1; border: 0; background: none; color: var(--rime); cursor: pointer; padding: 0 1px; }
+  .stars button.on { color: var(--ember); }
+  .evcomment { font: inherit; font-size: 16px; padding: 5px 8px; border: 1px solid var(--rime); border-radius: 5px; background: var(--bg); color: var(--ink); margin-top: 4px; }
+  .mshead { display: flex; align-items: center; gap: 10px; }
+  .mshead h1 { font-family: "Saira Condensed", "Arial Narrow", sans-serif; font-size: 40px; margin: 0; }
+  .mshead .score.big { margin-left: auto; }
+  b.ok { color: var(--ember); } b.ng { color: var(--steel); text-decoration: line-through; }
+  .aldist { display: grid; gap: 6px; }
+  .alrow { display: grid; grid-template-columns: minmax(8em, 14em) 1fr 3em; gap: 4px 10px; align-items: center; font-size: 13px; }
+  .alrow .alx { grid-column: 1 / -1; font-size: 11px; margin-top: -4px; }
+  .aln { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .albar { height: 8px; background: var(--rime); border-radius: 4px; overflow: hidden; } .albar i { display: block; height: 100%; background: var(--ember); }
   .bands { display: inline-flex; gap: 4px; flex-wrap: wrap; }
   .bands span { font-size: 11px; padding: 0 5px; border: 1px solid var(--rime); border-radius: 4px; white-space: nowrap; }
   .filters select { font: inherit; font-size: 16px; padding: 5px 8px; border: 1px solid var(--rime); border-radius: 5px; background: var(--bg); color: var(--ink); }
@@ -519,7 +545,7 @@ function renderSvs(el, list) {
     rows: list, initialSort: { key: "season", dir: "desc" }, pageSize: 10,
     columns: [
       { key: "season", label: "シーズン", cell: r => `<span class="num">S${r.season}</span>` },
-      { key: "opponent", label: "対戦相手", cell: r => r.opponent ? `<a href="#/state/${r.opponent}"><span class="num">#${r.opponent}</span></a>` : "–" },
+      { key: "opponent", label: "対戦相手", cell: r => r.opponent ? `<a href="#/${MODE === "migrate" ? "s" : "state"}/${r.opponent}"><span class="num">#${r.opponent}</span></a>` : "–" },
       { key: "score", label: "自王国", r: true, cell: r => `<span class="num">${jp(r.score)}</span>` },
       { key: "opponent_score", label: "相手", r: true, cell: r => `<span class="num">${jp(r.opponent_score)}</span>` },
       { key: "_res", label: "結果", sort: false, cell: r => { const x = svsResult(r); return `<span class="res ${x.cls}">${x.text}</span>`; } },
@@ -907,8 +933,8 @@ async function shareKey(pass, salt) {
   return crypto.subtle.deriveKey({ name: "PBKDF2", salt, iterations: 200000, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
 }
 const DC = "https://discord.com/channels/";
-async function packNotes(notes, pass) {
-  const text = Object.entries(notes).map(([k, u]) => `${k} ${u.startsWith(DC) ? "~" + u.slice(DC.length) : u}`).join("\n");
+async function packNotes(notes, pass, evals = {}) {
+  const text = JSON.stringify({ n: Object.fromEntries(Object.entries(notes).map(([k, u]) => [k, u.startsWith(DC) ? "~" + u.slice(DC.length) : u])), e: evals });
   const z = await pipeBytes(new TextEncoder().encode(text), new CompressionStream("deflate-raw"));
   const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
   const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, await shareKey(pass, salt), z));
@@ -918,12 +944,22 @@ async function unpackNotes(blob, pass) {
   const all = unb64u(blob), salt = all.slice(0, 16), iv = all.slice(16, 28), ct = all.slice(28);
   const z = new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv }, await shareKey(pass, salt), ct));
   const text = new TextDecoder().decode(await pipeBytes(z, new DecompressionStream("deflate-raw")));
-  const out = {};
-  for (const line of text.split("\n")) {
-    const m = line.match(/^(\d{1,5}) (\S+)$/); if (!m) continue;
-    const u = m[2].startsWith("~") ? DC + m[2].slice(1) : m[2];
-    if (/^https:\/\/[^\s"'<>]+$/.test(u)) out[m[1]] = u;
+  const out = {}, evals = {};
+  let obj = null; try { obj = JSON.parse(text); } catch {}
+  const pairs = obj ? Object.entries(obj.n || {}) : text.split("\n").map(l => l.match(/^(\d{1,5}) (\S+)$/)).filter(Boolean).map(m => [m[1], m[2]]);
+  for (const [k, v] of pairs) {
+    const u = String(v).startsWith("~") ? DC + String(v).slice(1) : String(v);
+    if (/^\d{1,5}$/.test(k) && /^https:\/\/[^\s"'<>]+$/.test(u)) out[k] = u;
   }
+  for (const [k, e] of Object.entries(obj?.e || {})) {
+    if (!/^\d{1,5}$/.test(k) || !e || typeof e !== "object") continue;
+    const clean = {};
+    if (STATUSES.includes(e.status)) clean.status = e.status;
+    for (const c of ["mood", "accept"]) if (Number.isInteger(e[c]) && e[c] >= 1 && e[c] <= 5) clean[c] = e[c];
+    if (typeof e.comment === "string") clean.comment = e.comment.slice(0, 80);
+    if (Object.keys(clean).length) evals[k] = clean;
+  }
+  out.__evals = evals;
   return out;
 }
 // URLの末尾「&n=…」を取り出す（取り込み後は消す）
@@ -953,6 +989,39 @@ function powerBand(v, r) {
   if (r.p100 != null && v >= r.p100) return 100;
   return r.p100 != null ? 999 : null;
 }
+// ---- 候補の評価（トリアージ） ----
+// 自動項目はデータから0〜5点、手動項目はメンバーが★1〜5。採点できた項目の平均を100点満点にする
+const EVAL_KEY = "wos-migrate-evals";
+const STATUSES = ["未確認", "調査中", "有力", "保留", "除外"];
+function localEvals() { try { return JSON.parse(localStorage.getItem(EVAL_KEY) || "{}"); } catch { return {}; } }
+function saveEval(kid, patch) { const e = localEvals(); e[kid] = { ...(e[kid] || {}), ...patch }; try { localStorage.setItem(EVAL_KEY, JSON.stringify(e)); } catch {} }
+const CRITERIA = [
+  { key: "voice", label: "発言力", auto: true, hint: "メンバー全員の戦力順位（いちばん低い人で判定）",
+    score: (r, people) => { const bs = people.filter(p => p.power).map(p => powerBand(p.power, r)); if (!bs.length || bs.some(b => b == null)) return null;
+      const w = Math.max(...bs); return w <= 10 ? 5 : w <= 30 ? 4 : w <= 100 ? 2 : 0; },
+    why: (r, people) => people.filter(p => p.power).map(p => `${p.name} ${bandLabel(powerBand(p.power, r))}`).join("・") },
+  { key: "open", label: "未完成度", auto: true, hint: "最大の同盟の占有率が低いほど高得点",
+    score: r => r.top1 == null ? null : r.top1 <= 30 ? 5 : r.top1 <= 45 ? 4 : r.top1 <= 60 ? 3 : r.top1 <= 75 ? 2 : r.top1 <= 90 ? 1 : 0,
+    why: r => r.top1 != null ? `占有率${r.top1}%` : "" },
+  { key: "jp", label: "日本語環境", auto: true, hint: "日本語名の割合",
+    score: r => r.jp == null ? null : r.jp >= 80 ? 5 : r.jp >= 60 ? 4 : r.jp >= 40 ? 3 : r.jp >= 20 ? 1 : 0,
+    why: r => r.jp != null ? `日本語名${r.jp}%` : "" },
+  { key: "svs", label: "SvSの伸びしろ", auto: true, hint: "準備期間の勝率が低いほど高得点（記録がなければ採点しない）",
+    score: r => !r.svsN ? null : r.svsRate <= 30 ? 5 : r.svsRate <= 50 ? 4 : r.svsRate <= 70 ? 2 : 1,
+    why: r => r.svsN ? `${r.svsW}勝${r.svsN - r.svsW}敗` : "記録なし" },
+  { key: "mood", label: "雰囲気", auto: false, hint: "Discordメモやゲーム内の様子から" },
+  { key: "accept", label: "受け入れ", auto: false, hint: "執政官や同盟との話し合いの手応え" },
+];
+function evaluate(r, people, ev) {
+  const items = CRITERIA.map(c => {
+    const v = c.auto ? c.score(r, people) : (ev?.[c.key] ?? null);
+    return { ...c, v, why: c.auto ? c.why(r, people) : "" };
+  });
+  const got = items.filter(i => i.v != null);
+  const total = got.length ? Math.round(got.reduce((a, i) => a + i.v, 0) / got.length * 20) : null;
+  return { items, total, count: got.length };
+}
+const scoreClass = t => t == null ? "" : t >= 75 ? "hi" : t >= 50 ? "mid" : "lo";
 const bandLabel = b => b == null ? "–" : b === 999 ? "圏外" : `${b}位内`;
 const balanceLabel = d => d == null ? "–" : d >= 40 ? `一強（${d}%）` : d >= 25 ? `やや一強（${d}%）` : `拮抗（${d}%）`;
 
@@ -1017,7 +1086,7 @@ async function viewMigrate(param) {
     <div id="noteImportMsg"></div>
     <h2>候補リスト${cands.length ? `（${cands.length}）` : ""}</h2>
     <div class="sharebar">${viewMigrate.pass
-      ? `<button type="button" class="more" id="shareNotes" style="margin:0">📤 メモの共有リンクを作る</button><span class="dim" id="shareMsg">この端末のメモを全部まとめて、パスフレーズで暗号化したリンクにします。Discordに貼って共有してください。</span>`
+      ? `<button type="button" class="more" id="shareNotes" style="margin:0">📤 メモと評価の共有リンクを作る</button><span class="dim" id="shareMsg">この端末のメモと評価をまとめて、パスフレーズで暗号化したリンクにします。Discordに貼って共有してください。</span>`
       : `<span class="dim">パスフレーズで開くと、メモを共有リンクにしてメンバーに送れます。</span>`}</div>
     <div id="cands">${cands.length ? "" : `<p class="note">下の一覧で☆を押すと、ここに候補が並びます。</p>`}</div>
 
@@ -1030,6 +1099,7 @@ async function viewMigrate(param) {
         <span class="check"><input type="checkbox" id="fsvsall" ${F.svsAll ? "checked" : ""}> 記録のない王国も表示</span></label>
       <label class="check" style="align-self:end"><input type="checkbox" id="fgrp" ${F.inGroup ? "checked" : ""} ${group ? "" : "disabled"}> 移民グループ内（${group ? `${group[0]}〜${group[1]}` : "情報なし"}）だけ</label>
       <label class="check" style="align-self:end"><input type="checkbox" id="fnote" ${F.noted ? "checked" : ""}> 📝 メモがある王国だけ</label>
+      <label class="check" style="align-self:end"><input type="checkbox" id="fout" ${F.showOut ? "checked" : ""}> 「除外」にした王国も表示</label>
       <label><span>開設からの日数</span><span class="rng"><input type="text" inputmode="numeric" id="fage1" name="age_min_search" ${SEARCH_ATTRS} value="${F.ageMin}" placeholder="下限">〜<input type="text" inputmode="numeric" id="fage2" name="age_max_search" ${SEARCH_ATTRS} value="${F.ageMax}" placeholder="上限"></span></label>
     </div>
     <p class="dim"><b>型ができていない王国の目安</b>：「最大の同盟の占有率」が低い（上位100人が1つの同盟に集まっていない）、「大同盟」が少ない、SvSの勝率が低い、など。メンバーが上位に入れるほど、作戦や指揮に関わりやすくなります。<br>
@@ -1086,10 +1156,13 @@ async function viewMigrate(param) {
     else {
       try {
         const got = await unpackNotes(viewMigrate.pendingNotes, viewMigrate.pass);
+        const gotEvals = got.__evals || {}; delete got.__evals;
+        const myE = localEvals(); for (const [k, e] of Object.entries(gotEvals)) myE[k] = { ...(myE[k] || {}), ...e };
+        try { localStorage.setItem(EVAL_KEY, JSON.stringify(myE)); } catch {}
         const mine = localNotes(); let added = 0;
         for (const [k, u] of Object.entries(got)) { if (mine[k] !== u) { mine[k] = u; added++; } }
         try { localStorage.setItem(NOTE_KEY, JSON.stringify(mine)); } catch {}
-        importMsg.innerHTML = `<p class="note">共有リンクからメモを取り込みました（${Object.keys(got).length}件中 ${added}件が新規・更新）。</p>`;
+        importMsg.innerHTML = `<p class="note">共有リンクから取り込みました（メモ${Object.keys(got).length}件中 ${added}件が新規・更新、評価${Object.keys(gotEvals).length}王国分）。</p>`;
       } catch { importMsg.innerHTML = `<p class="note">共有リンクのメモを開けませんでした（パスフレーズが違うか、リンクが途中で切れています）。</p>`; }
       viewMigrate.pendingNotes = null;
     }
@@ -1124,10 +1197,13 @@ async function viewMigrate(param) {
         && (r.svsN ? r.svsRate <= F.svsMax : F.svsAll)
         && (r.age_days == null || (r.age_days >= a1 && r.age_days <= a2)) && !kidsForGroup.map(String).includes(String(r.kid))
         && (!F.inGroup || !group || (r.kid >= group[0] && r.kid <= group[1]))
-        && (!F.noted || notesFor(r.kid, migr).length > 0),
+        && (!F.noted || notesFor(r.kid, migr).length > 0)
+        && (F.showOut || localEvals()[r.kid]?.status !== "除外"),
       columns: [
         { key: "_star", label: "", sort: false, cell: r => star(r.kid) },
-        { key: "kid", label: "王国", cell: r => `<a href="./#/state/${r.kid}" target="_blank" rel="noopener"><span class="num">#${r.kid}</span></a>${notesFor(r.kid, migr).length ? ` <span title="メモあり">📝</span>` : ""}` },
+        { key: "_score", label: "評価", r: true, sortVal: r => evaluate(r, people, localEvals()[r.kid]).total, cell: r => { const e = evaluate(r, people, localEvals()[r.kid]); const st = localEvals()[r.kid]?.status;
+          return `<span class="score ${scoreClass(e.total)}">${e.total ?? "–"}</span>${st && st !== "未確認" ? `<span class="st st-${STATUSES.indexOf(st)}">${esc(st)}</span>` : ""}`; } },
+        { key: "kid", label: "王国", cell: r => `<a href="#/s/${r.kid}"><span class="num">#${r.kid}</span></a>${notesFor(r.kid, migr).length ? ` <span title="メモあり">📝</span>` : ""}` },
         { key: "jp", label: "日本語名", r: true, cell: r => jpBadge(r.jp) },
         { key: "_band", label: "メンバーの順位", sort: false, cell: r => people.some(p => p.power) ? `<span class="bands">${people.map(p => `<span title="${esc(p.name)}">${bandLabel(powerBand(p.power, r))}</span>`).join("")}</span>` : `<span class="dim">戦力未入力</span>` },
         { key: "top1", label: "最大同盟の占有", r: true, cell: r => r.top1 != null ? `<span class="num">${r.top1}%</span>` : "–" },
@@ -1147,6 +1223,7 @@ async function viewMigrate(param) {
   app.querySelector("#fsvsall").onchange = e => { F.svsAll = e.target.checked; drawList(); };
   app.querySelector("#fgrp").onchange = e => { F.inGroup = e.target.checked; drawList(); };
   app.querySelector("#fnote").onchange = e => { F.noted = e.target.checked; drawList(); };
+  app.querySelector("#fout").onchange = e => { F.showOut = e.target.checked; drawList(); };
   app.querySelector("#fage1").onchange = e => { F.ageMin = e.target.value; drawList(); };
   app.querySelector("#fage2").onchange = e => { F.ageMax = e.target.value; drawList(); };
   drawList();
@@ -1156,8 +1233,10 @@ async function viewMigrate(param) {
   details = await Promise.all(cands.map(k => load(`states/${k}.json`)));
   function drawCands() {
     if (!cands.length) return;
-    candBox.innerHTML = `<div class="candgrid">${cands.map((k, i) => {
+    const order = cands.map((k, i) => ({ k, i, t: localEvals()[k]?.status === "除外" ? -2 : evaluate(rows.find(r => String(r.kid) === k) || {}, people, localEvals()[k]).total ?? -1 })).sort((a, b) => b.t - a.t);
+    candBox.innerHTML = `<div class="candgrid">${order.map(({ k, i }, rank) => {
       const d = details[i], s = rows.find(r => String(r.kid) === k) || {};
+      const evl = localEvals()[k] || {}, E = evaluate(s, people, evl);
       const st = d?.state || {};
       const transferTotal = Number(st.state_transfer_score || s.state_transfer_score) || 0;
       const pp = boardRows(d?.boards, "personal_power"), tr = boardRows(d?.boards, "state_transfer"), lab = boardRows(d?.boards, "labyrinth");
@@ -1165,7 +1244,17 @@ async function viewMigrate(param) {
       const kana = /[\u3041-\u309F\u30A1-\u30FF\uFF66-\uFF9F]/;
       const rk = v => v == null ? "–" : v === "圏外" ? "圏外" : `${v}位`;
       return `<section class="cand">
-        <div class="candhead"><a href="./#/state/${k}" class="num" target="_blank" rel="noopener">#${k}</a>${star(k)}</div>
+        <div class="candhead"><span class="rankno">${rank + 1}</span><a href="#/s/${k}" class="num">#${k}</a>
+          <span class="score big ${scoreClass(E.total)}">${E.total ?? "–"}<small>点</small></span>${star(k)}</div>
+        <div class="evalbox">
+          <label class="evst">状態<select class="evsel" data-k="${k}" name="status_search_${k}">${STATUSES.map(t => `<option ${ (evl.status || "未確認") === t ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+          ${E.items.map(it => `<div class="evrow"><span class="evl" title="${esc(it.hint)}">${esc(it.label)}</span>
+            ${it.auto
+              ? `<span class="pts">${it.v == null ? `<span class="dim">–</span>` : "●".repeat(it.v) + `<span class="off">${"●".repeat(5 - it.v)}</span>`}</span><span class="dim evw">${esc(it.why || "")}</span>`
+              : `<span class="stars" data-k="${k}" data-c="${it.key}">${[1, 2, 3, 4, 5].map(n => `<button type="button" data-n="${n}" class="${it.v >= n ? "on" : ""}" aria-label="${n}">★</button>`).join("")}</span><span class="dim evw">${esc(it.hint)}</span>`}</div>`).join("")}
+          <input type="text" class="evcomment" data-k="${k}" name="comment_search_${k}" ${SEARCH_ATTRS} maxlength="80" placeholder="ひとことメモ（例：執政官が日本人で好意的）" value="${esc(evl.comment || "")}">
+          <div class="dim">採点${E.count}/${E.items.length}項目の平均を100点満点にしています。</div>
+        </div>
         <div class="candstats">
           <span>日本語名 <b>${s.jp != null ? s.jp + "%" : "–"}</b></span><span>最大同盟の占有 <b>${s.top1 != null ? s.top1 + "%" : "–"}</b></span>
           <span>大同盟 <b>${s.big ?? "–"}</b></span><span>SvS <b>${s.svsN ? `${s.svsW}勝${s.svsN - s.svsW}敗` : "記録なし"}</b></span><span>${balanceLabel(s.dom)}</span>
@@ -1187,6 +1276,13 @@ async function viewMigrate(param) {
     <p class="dim">「移民したら」は、メンバーの数値をその王国の上位100人のランキングに入れたときの順位です。スコア比は、自分の移民スコア÷王国の移民スコア（上位100人の合計）で、公式の説明では高いほど必要な移民パスが増えます。正確なパス数とリーディング王国かどうかは、移民イベントの画面でしか確定しません。</p>
     <p><a href="./#/compare/${[meta?.watch_states?.[0], ...cands].filter(Boolean).join(",")}" target="_blank" rel="noopener">候補を地底探検・英雄で比較する（通常のサイトで開きます）→</a></p>`;
     candBox.onclick = e => { const b = e.target.closest(".star"); if (!b) return; setCands(cands.filter(x => x !== b.dataset.k)); };
+    candBox.querySelectorAll(".evsel").forEach(sel => sel.onchange = () => { saveEval(sel.dataset.k, { status: sel.value }); drawCands(); drawList(); });
+    candBox.querySelectorAll(".stars button").forEach(btn => btn.onclick = () => {
+      const box = btn.parentElement, k = box.dataset.k, c = box.dataset.c, n = Number(btn.dataset.n);
+      const cur = localEvals()[k]?.[c];
+      saveEval(k, { [c]: cur === n ? null : n }); drawCands(); drawList();
+    });
+    candBox.querySelectorAll(".evcomment").forEach(inp => inp.onchange = () => { saveEval(inp.dataset.k, { comment: inp.value.trim() || null }); });
     candBox.querySelectorAll(".noteurl").forEach(inp => inp.onchange = () => {
       const v = inp.value.trim();
       if (v && !safeUrl(v)) { inp.setCustomValidity("https:// から始まるURLを貼ってください"); inp.reportValidity(); return; }
@@ -1196,17 +1292,109 @@ async function viewMigrate(param) {
   drawCands();
   const shareBtn = app.querySelector("#shareNotes");
   if (shareBtn) shareBtn.onclick = async () => {
-    const notes = localNotes();
-    const n = Object.keys(notes).length;
+    const notes = localNotes(), evals = localEvals();
+    const n = Object.keys(notes).length, ne = Object.keys(evals).length;
     const msg = app.querySelector("#shareMsg");
-    if (!n) { msg.textContent = "この端末にはまだメモがありません。候補カードの「メモのリンクを追加」から登録してください。"; return; }
-    const blob = await packNotes(notes, viewMigrate.pass);
+    if (!n && !ne) { msg.textContent = "この端末にはまだメモも評価もありません。"; return; }
+    const blob = await packNotes(notes, viewMigrate.pass, evals);
     const url = location.origin + location.pathname + "#/" + cands.join(",") + "&n=" + blob;
-    try { await navigator.clipboard.writeText(url); msg.textContent = `メモ${n}件の共有リンクをコピーしました（${url.length}文字）。Discordに貼ってください。`; }
+    try { await navigator.clipboard.writeText(url); msg.textContent = `メモ${n}件・評価${ne}王国分の共有リンクをコピーしました（${url.length}文字）。Discordに貼ってください。`; }
     catch { msg.innerHTML = `下のリンクをコピーしてください（メモ${n}件）<br><textarea readonly rows="3" style="width:100%;font-size:12px">${esc(url)}</textarea>`; }
     if (url.length > 1900) msg.textContent += " ※Discordの1メッセージの文字数上限（2000字）に近いので、貼れない場合はメモを分けてください。";
   };
   viewMigrate.drawn = true;
+}
+
+// ---------- 移民用の王国ページ ----------
+async function viewMigrateState(kid) {
+  viewMigrate.drawn = false;
+  const [list, lang, meta, tg, enc, svsSum, d, svsList] = await Promise.all([load("states.json"), load("lang.json"), load("meta.json"),
+    getJSON("transfer-groups.json"), load("migrants.enc.json"), load("svs/summary.json"), load(`states/${kid}.json`), load(`svs/${kid}.json`)]);
+  await heroNamesReady;
+  if (enc && !viewMigrate.secret) {
+    let saved = null; try { saved = localStorage.getItem(MIG_PASS_KEY); } catch {}
+    if (saved) { try { viewMigrate.secret = await decryptMigrants(enc, saved); viewMigrate.pass = saved; } catch {} }
+  }
+  const migr = viewMigrate.secret || null;
+  const people = loadPeople(migr);
+  const events = tg?.events || (tg?.event ? [{ id: "cur", label: "今回の移民", status: "公式", ...tg.event, groups: tg.groups }] : []);
+  const ev = events.find(e => e.id === (viewMigrate.evId || tg?.default)) || events[0] || null;
+  const groupOf = k => (ev?.groups || []).find(([a, b]) => k >= a && k <= b) || null;
+  const base = list?.states?.find(x => String(x.kid) === String(kid)) || { kid: Number(kid) };
+  const x = lang?.states?.[kid] || {}, sv = svsSum?.[kid];
+  const r = { ...base, ...(d?.state || {}), jp: x.jp ?? null, dom: x.dom ?? null, top1: x.top1 ?? null, big: x.big ?? null,
+    p10: x.p10 ?? null, p30: x.p30 ?? null, p100: x.p100 ?? null, t100: x.t100 ?? null,
+    svsN: sv?.n || 0, svsW: sv?.w || 0, svsRate: sv?.n ? Math.round(sv.w / sv.n * 100) : null };
+  r._power = totalPower(r);
+  const evl = localEvals()[kid] || {}, E = evaluate(r, people, evl);
+  const cands = (viewMigrate.lastCands || "").split(",").filter(Boolean);
+  const inCand = cands.includes(String(kid));
+  const back = "#/" + cands.join(",");
+  const homeKids = migr?.people?.filter(p => p.kid).map(p => p.kid) || meta?.watch_states || [];
+  const g = groupOf(Number(kid)), myG = homeKids.map(groupOf);
+  const inGroup = g && myG.length && myG.every(m => m === g);
+  const pp = boardRows(d?.boards, "personal_power"), tr = boardRows(d?.boards, "state_transfer"), lab = boardRows(d?.boards, "labyrinth"), al = boardRows(d?.boards, "alliance_power");
+  const rk = v => v == null ? "–" : v === "圏外" ? "圏外" : `${v}位`;
+  const transferTotal = Number(r.state_transfer_score) || 0;
+  // 上位100人の同盟別の人数
+  const byAl = new Map(); for (const p of pp) { const k = p.alliance_abbr || "（無所属）"; byAl.set(k, (byAl.get(k) || 0) + 1); }
+  const alDist = [...byAl.entries()].sort((a, b) => b[1] - a[1]);
+  const alInfo = new Map(al.map(a => [a.abbr, a]));
+  const line = n => pp.length >= n ? jp(pp[n - 1].score) : "–";
+
+  app.innerHTML = `
+    <p class="sub"><a href="${back}">← 移民検討に戻る</a></p>
+    <div class="mshead"><h1 class="num">#${esc(kid)}</h1><span class="score big ${scoreClass(E.total)}">${E.total ?? "–"}<small>点</small></span>
+      <button type="button" class="star${inCand ? " on" : ""}" id="msStar" aria-label="候補">${inCand ? "★" : "☆"}</button></div>
+    <div class="candstats">
+      <span>${ev ? (inGroup ? `<b class="ok">${esc(ev.label)}の移民範囲内</b>（${g[0]}〜${g[1]}）` : `<b class="ng">${esc(ev.label)}の移民範囲外</b>`) : ""}</span>
+      <span>日本語名 <b>${r.jp != null ? r.jp + "%" : "–"}</b></span><span>最大同盟の占有 <b>${r.top1 != null ? r.top1 + "%" : "–"}</b></span>
+      <span>大同盟 <b>${r.big ?? "–"}</b></span><span>SvS <b>${r.svsN ? `${r.svsW}勝${r.svsN - r.svsW}敗` : "記録なし"}</b></span>
+      <span>総戦力 <b>${jp(r._power)}</b></span><span>移民スコア <b>${jp(r.state_transfer_score)}</b></span>
+      <span>人数 <b>${int(r.player_count)}</b></span><span>開設 <b>${r.age_days != null ? int(r.age_days) + "日" : "–"}</b></span>
+    </div>
+    <h2>評価</h2>
+    <div class="evalbox">
+      <label class="evst">状態<select class="evsel" data-k="${kid}" name="status_search_${kid}">${STATUSES.map(t => `<option ${(evl.status || "未確認") === t ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+      ${E.items.map(it => `<div class="evrow"><span class="evl" title="${esc(it.hint)}">${esc(it.label)}</span>
+        ${it.auto ? `<span class="pts">${it.v == null ? `<span class="dim">–</span>` : "●".repeat(it.v) + `<span class="off">${"●".repeat(5 - it.v)}</span>`}</span><span class="dim evw">${esc(it.why || "")}</span>`
+          : `<span class="stars" data-k="${kid}" data-c="${it.key}">${[1, 2, 3, 4, 5].map(n => `<button type="button" data-n="${n}" class="${it.v >= n ? "on" : ""}" aria-label="${n}">★</button>`).join("")}</span><span class="dim evw">${esc(it.hint)}</span>`}</div>`).join("")}
+      <input type="text" class="evcomment" data-k="${kid}" name="comment_search_${kid}" ${SEARCH_ATTRS} maxlength="80" placeholder="ひとことメモ" value="${esc(evl.comment || "")}">
+    </div>
+    <div class="notes">${notesFor(kid, migr).map(n => `<a class="notebtn" href="${esc(n.url)}" target="_blank" rel="noopener noreferrer">📝 ${esc(n.label || noteLabel(n.url))}</a>`).join("")}
+      <details class="noteedit"><summary>${safeUrl(localNotes()[kid]) ? "この端末のメモを変更" : "メモのリンクを追加"}</summary>
+        <input type="url" class="noteurl" data-k="${kid}" name="note_url_${kid}" ${SEARCH_ATTRS} placeholder="https://discord.com/channels/..." value="${esc(localNotes()[kid] || "")}"></details></div>
+    ${!d ? `<p class="note">この王国の詳細はまだ取得されていません。順次取得されます。</p>` : `
+    <h2>メンバーが入ったら</h2>
+    <div class="tablewrap"><table><thead><tr><th>メンバー</th><th class="r">戦力</th><th class="r">移民スコア</th><th class="r">地底探検</th><th class="r">スコア比</th></tr></thead><tbody>
+      ${people.map(p => `<tr><td>${esc(p.name)}</td><td class="r">${rk(predictRank(pp, p.power))}</td><td class="r">${rk(predictRank(tr, p.transfer))}</td><td class="r">${rk(predictRank(lab, p.lab))}</td>
+        <td class="r">${p.transfer && transferTotal ? (p.transfer / transferTotal * 100).toFixed(2) + "%" : "–"}</td></tr>`).join("")}
+    </tbody></table></div>
+    <p class="dim">戦力のライン：1位 ${line(1)}・10位 ${line(10)}・30位 ${line(30)}・100位 ${line(100)}。移民スコアの100位ライン：${tr.length >= 100 ? jp(tr[99].score) : "–"}。</p>
+
+    <h2>同盟の勢力図</h2>
+    <p class="dim">個人戦力の上位100人が、どの同盟に何人いるか。1つの同盟に集中しているほど「型ができている」王国です。</p>
+    <div class="aldist">${alDist.slice(0, 10).map(([abbr, n]) => { const a = alInfo.get(abbr);
+      return `<div class="alrow"><span class="aln">[${esc(abbr)}] ${esc(a?.name || "")}</span><span class="albar"><i style="width:${n}%"></i></span><span class="num">${n}人</span>
+        <span class="dim alx">${a ? `盟主 ${esc(a.leader_name || "–")}・${a.member_count ?? "–"}人・${jp(a.score)}` : ""}</span></div>`; }).join("")}</div>
+
+    <h2>上位20人</h2>
+    <div class="tablewrap"><table><thead><tr><th>順位</th><th>領主</th><th>同盟</th><th class="r">戦力</th></tr></thead><tbody>
+      ${pp.slice(0, 20).map((p, i) => `<tr><td class="num">${p.rank ?? i + 1}</td><td>${esc(p.nick_name)}</td><td>${p.alliance_abbr ? `[${esc(p.alliance_abbr)}]` : "–"}</td><td class="r num">${jp(p.score)}</td></tr>`).join("")}
+    </tbody></table></div>`}
+    <section id="msSvs"></section>
+    <p><a href="./#/state/${esc(kid)}" target="_blank" rel="noopener">この王国の通常のページを開く →</a>　<a href="./#/compare/${[homeKids[0], kid].filter(Boolean).join(",")}" target="_blank" rel="noopener">自王国と地底探検・英雄を比較 →</a></p>`;
+  renderSvs(app.querySelector("#msSvs"), svsList);
+
+  const rerender = () => viewMigrateState(kid);
+  app.querySelector("#msStar").onclick = () => {
+    const next = inCand ? cands.filter(c => c !== String(kid)) : [...cands, String(kid)];
+    viewMigrate.lastCands = next.join(","); rerender();
+  };
+  app.querySelector(".evsel").onchange = e => { saveEval(String(kid), { status: e.target.value }); rerender(); };
+  app.querySelectorAll(".stars button").forEach(btn => btn.onclick = () => { const c = btn.parentElement.dataset.c, n = Number(btn.dataset.n); const cur = localEvals()[kid]?.[c]; saveEval(String(kid), { [c]: cur === n ? null : n }); rerender(); });
+  app.querySelector(".evcomment").onchange = e => saveEval(String(kid), { comment: e.target.value.trim() || null });
+  app.querySelector(".noteurl").onchange = e => { const v = e.target.value.trim(); if (v && !safeUrl(v)) { e.target.setCustomValidity("https:// から始まるURLを貼ってください"); e.target.reportValidity(); return; } e.target.setCustomValidity(""); saveLocalNote(String(kid), v || null); rerender(); };
 }
 
 // ---------- ルーティング ----------
@@ -1216,8 +1404,10 @@ async function route() {
     const blob = takeNoteBlob();
     if (blob) viewMigrate.pendingNotes = blob;
     if (!viewMigrate.drawn) window.scrollTo(0, 0);
+    if (parts[0] === "s" && /^\d+$/.test(parts[1] || "")) { await viewMigrateState(parts[1]); document.title = `#${parts[1]} | 移民検討`; return; }
     const p0 = (parts[0] === "migrate" ? parts[1] : parts[0]) || "";
-    await viewMigrate(p0.split(/[&?]/)[0]);
+    viewMigrate.lastCands = p0.split(/[&?]/)[0];
+    await viewMigrate(viewMigrate.lastCands);
     document.title = "移民検討";
     return;
   }

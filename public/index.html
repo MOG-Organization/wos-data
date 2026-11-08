@@ -904,14 +904,13 @@ async function viewMigrate(param) {
   const sameGroup = groupsAll.length && groupsAll.every(g => g && g === groupsAll[0]);
   const group = sameGroup ? groupsAll[0] : null;
   const F = viewMigrate.F || (viewMigrate.F = {
-    jp: 70, jpa: 50, ageMin: "", ageMax: "", active: 0, inGroup: !!group,
+    jp: 70, ageMin: "", ageMax: "", inGroup: !!group,
   });
   const setCands = c => { location.hash = "#/" + c.join(","); };
   let details = [];
   const rows = list.states.map(s => {
     const x = L[s.kid] || {};
-    const act = s.player_count ? Math.round((Number(s.active_7d) || 0) / s.player_count * 100) : null;
-    return { ...s, jp: x.jp ?? null, jpa: x.jpa ?? null, dom: x.dom ?? null, act, _power: totalPower(s) };
+    return { ...s, jp: x.jp ?? null, dom: x.dom ?? null, _power: totalPower(s) };
   });
 
   app.innerHTML = `
@@ -939,12 +938,10 @@ async function viewMigrate(param) {
     <h2>王国を探す</h2>
     <div class="filters">
       <label><span>日本語名 <b id="fjpv">${F.jp}</b>%以上</span><input type="range" id="fjp" min="0" max="100" step="5" value="${F.jp}"></label>
-      <label><span>日本語の同盟 <b id="fjpav">${F.jpa}</b>%以上</span><input type="range" id="fjpa" min="0" max="100" step="5" value="${F.jpa}"></label>
-      <label><span>アクティブ率 <b id="factv">${F.active}</b>%以上</span><input type="range" id="fact" min="0" max="100" step="5" value="${F.active}"></label>
       <label class="check" style="align-self:end"><input type="checkbox" id="fgrp" ${F.inGroup ? "checked" : ""} ${group ? "" : "disabled"}> 移民グループ内（${group ? `${group[0]}〜${group[1]}` : "情報なし"}）だけ</label>
       <label><span>開設からの日数</span><span class="rng"><input type="text" inputmode="numeric" id="fage1" name="age_min_search" ${SEARCH_ATTRS} value="${F.ageMin}" placeholder="下限">〜<input type="text" inputmode="numeric" id="fage2" name="age_max_search" ${SEARCH_ATTRS} value="${F.ageMax}" placeholder="上限"></span></label>
     </div>
-    <p class="dim">日本語名・日本語の同盟・勢力バランスは、詳細を取得済みの王国だけ表示されます（全王国は約1日で一巡）。</p>
+    <p class="dim">日本語名＝その王国の個人戦力上位100人のうち、名前にひらがな・カタカナを含む人の割合（漢字だけ・ローマ字の名前は数えないため低めに出ます）。勢力バランス＝1位の同盟が上位10同盟の合計戦力に占める割合。どちらも詳細を取得済みの王国だけ表示されます。</p>
     <div id="mlist"></div>`;
 
   // 今回の移民イベントと移民範囲
@@ -1001,15 +998,13 @@ async function viewMigrate(param) {
     const a1 = Number(F.ageMin) || 0, a2 = Number(F.ageMax) || Infinity;
     const table = sortableTable({
       rows, initialSort: { key: "jp", dir: "desc" }, pageSize: 50,
-      filter: () => r => (r.jp ?? -1) >= F.jp && (F.jpa ? (r.jpa ?? -1) >= F.jpa : true) && (F.active ? (r.act ?? -1) >= F.active : true)
+      filter: () => r => (r.jp ?? -1) >= F.jp
         && (r.age_days == null || (r.age_days >= a1 && r.age_days <= a2)) && !kidsForGroup.map(String).includes(String(r.kid))
         && (!F.inGroup || !group || (r.kid >= group[0] && r.kid <= group[1])),
       columns: [
         { key: "_star", label: "", sort: false, cell: r => star(r.kid) },
         { key: "kid", label: "王国", cell: r => `<a href="./#/state/${r.kid}" target="_blank" rel="noopener"><span class="num">#${r.kid}</span></a>` },
         { key: "jp", label: "日本語名", r: true, cell: r => jpBadge(r.jp) },
-        { key: "jpa", label: "日本語の同盟", r: true, hs: true, cell: r => r.jpa != null ? `<span class="num">${r.jpa}%</span>` : "–" },
-        { key: "act", label: "アクティブ", r: true, cell: r => r.act != null ? `<span class="num">${r.act}%</span>` : "–" },
         { key: "dom", label: "勢力バランス", hs: true, cell: r => balanceLabel(r.dom) },
         { key: "_power", label: "総戦力", r: true, cell: r => `<span class="num">${jp(r._power)}</span>` },
         { key: "state_transfer_score", label: "移民スコア", r: true, hs: true, cell: r => `<span class="num">${jp(r.state_transfer_score)}</span>` },
@@ -1020,7 +1015,7 @@ async function viewMigrate(param) {
     listBox.onclick = e => { const b = e.target.closest(".star"); if (!b) return; const k = b.dataset.k; setCands(cands.includes(k) ? cands.filter(x => x !== k) : [...cands, k]); };
   };
   const bindRange = (id, key) => { const el = app.querySelector("#" + id); el.oninput = () => { F[key] = Number(el.value); app.querySelector(`#${id}v`).textContent = el.value; drawList(); }; };
-  bindRange("fjp", "jp"); bindRange("fjpa", "jpa"); bindRange("fact", "active");
+  bindRange("fjp", "jp");
   app.querySelector("#fgrp").onchange = e => { F.inGroup = e.target.checked; drawList(); };
   app.querySelector("#fage1").onchange = e => { F.ageMin = e.target.value; drawList(); };
   app.querySelector("#fage2").onchange = e => { F.ageMax = e.target.value; drawList(); };
@@ -1042,8 +1037,7 @@ async function viewMigrate(param) {
       return `<section class="cand">
         <div class="candhead"><a href="./#/state/${k}" class="num" target="_blank" rel="noopener">#${k}</a>${star(k)}</div>
         <div class="candstats">
-          <span>日本語名 <b>${s.jp != null ? s.jp + "%" : "–"}</b></span><span>日本語の同盟 <b>${s.jpa != null ? s.jpa + "%" : "–"}</b></span>
-          <span>アクティブ <b>${s.act != null ? s.act + "%" : "–"}</b></span><span>${balanceLabel(s.dom)}</span>
+          <span>日本語名 <b>${s.jp != null ? s.jp + "%" : "–"}</b></span><span>${balanceLabel(s.dom)}</span>
           <span>総戦力 <b>${jp(s._power)}</b></span><span>開設 <b>${s.age_days != null ? int(s.age_days) + "日" : "–"}</b></span>
         </div>
         ${!d ? `<p class="note">この王国の詳細はまだ取得されていません。順次取得されます。</p>` : `
@@ -1052,7 +1046,7 @@ async function viewMigrate(param) {
             <td class="r hs">${p.transfer && transferTotal ? (p.transfer / transferTotal * 100).toFixed(2) + "%" : "–"}</td></tr>`).join("")}
         </tbody></table>
         <div class="dim">上位同盟</div>
-        <ol class="top10">${al.map((r, j) => `<li><span class="rk num">${j + 1}</span><span class="nm">[${esc(r.abbr)}] ${esc(r.name)}${kana.test(`${r.name}${r.abbr}`) ? "" : ` <span class="dim">（英字）</span>`}</span><span class="sc num">${jp(r.score)}<span class="dim">・${r.member_count ?? "–"}人</span></span></li>`).join("")}</ol>`}
+        <ol class="top10">${al.map((r, j) => `<li><span class="rk num">${j + 1}</span><span class="nm">[${esc(r.abbr)}] ${esc(r.name)}</span><span class="sc num">${jp(r.score)}<span class="dim">・${r.member_count ?? "–"}人</span></span></li>`).join("")}</ol>`}
       </section>`;
     }).join("")}</div>
     <p class="dim">「移民したら」は、2人の数値をその王国の上位100人のランキングに入れたときの順位です。スコア比は、自分の移民スコア÷王国の移民スコア（上位100人の合計）で、公式の説明では高いほど必要な移民パスが増えます。正確なパス数とリーディング王国かどうかは、移民イベントの画面でしか確定しません。</p>

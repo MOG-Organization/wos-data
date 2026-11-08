@@ -197,6 +197,7 @@
   .tgbox { background: var(--surface); border: 1px solid var(--rime); border-radius: 8px; padding: 12px 14px; margin: 0 0 8px; display: grid; gap: 8px; font-size: 14px; }
   .tgbox.live { border-color: var(--ember); }
   .tggrp b { color: var(--ember); }
+  .rangesum { font-size: 13px; color: var(--steel); margin: 0 0 4px; } .rangesum b { color: var(--ember); }
   .score { font-family: "Saira Condensed", "Arial Narrow", sans-serif; font-weight: 700; font-size: 17px; }
   .score.hi { color: var(--ember); } .score.mid { color: var(--ink); } .score.lo { color: var(--steel); }
   .score.big { font-size: 26px; margin-left: auto; margin-right: 6px; } .score small { font-size: 12px; margin-left: 1px; }
@@ -1049,7 +1050,7 @@ async function viewMigrate(param) {
   const sameGroup = groupsAll.length && groupsAll.every(g => g && g === groupsAll[0]);
   const group = sameGroup ? groupsAll[0] : null;
   const F = viewMigrate.F || (viewMigrate.F = {
-    jp: 40, ageMin: "", ageMax: "", inGroup: !!group, top1: 100, band: 0, svsMax: 100, svsAll: true,
+    jp: 40, ageMin: "", ageMax: "", inGroup: !!group, top1: 100, band: 0, svsMax: 100, svsAll: true, noData: true,
   });
   const setCands = c => { location.hash = "#/" + c.join(","); };
   let details = [];
@@ -1100,6 +1101,7 @@ async function viewMigrate(param) {
       <label class="check" style="align-self:end"><input type="checkbox" id="fgrp" ${F.inGroup ? "checked" : ""} ${group ? "" : "disabled"}> 移民グループ内（${group ? `${group[0]}〜${group[1]}` : "情報なし"}）だけ</label>
       <label class="check" style="align-self:end"><input type="checkbox" id="fnote" ${F.noted ? "checked" : ""}> 📝 メモがある王国だけ</label>
       <label class="check" style="align-self:end"><input type="checkbox" id="fout" ${F.showOut ? "checked" : ""}> 「除外」にした王国も表示</label>
+      <label class="check" style="align-self:end"><input type="checkbox" id="fnodata" ${F.noData ? "checked" : ""}> 詳細データが未取得の王国も表示</label>
       <label><span>開設からの日数</span><span class="rng"><input type="text" inputmode="numeric" id="fage1" name="age_min_search" ${SEARCH_ATTRS} value="${F.ageMin}" placeholder="下限">〜<input type="text" inputmode="numeric" id="fage2" name="age_max_search" ${SEARCH_ATTRS} value="${F.ageMax}" placeholder="上限"></span></label>
     </div>
     <p class="dim"><b>型ができていない王国の目安</b>：「最大の同盟の占有率」が低い（上位100人が1つの同盟に集まっていない）、「大同盟」が少ない、SvSの勝率が低い、など。メンバーが上位に入れるほど、作戦や指揮に関わりやすくなります。<br>
@@ -1191,9 +1193,9 @@ async function viewMigrate(param) {
     const a1 = Number(F.ageMin) || 0, a2 = Number(F.ageMax) || Infinity;
     const table = sortableTable({
       rows, initialSort: { key: "kid", dir: "asc" }, pageSize: 50,
-      filter: () => r => (r.jp ?? -1) >= F.jp
-        && (F.top1 >= 100 || (r.top1 != null && r.top1 <= F.top1))
-        && (!F.band || people.every(p => { const b = powerBand(p.power, r); return b != null && b <= F.band; }))
+      filter: () => r => (r.jp == null ? F.noData : r.jp >= F.jp)
+        && (F.top1 >= 100 || (r.top1 == null ? F.noData : r.top1 <= F.top1))
+        && (!F.band || people.every(p => { const b = powerBand(p.power, r); return b == null ? F.noData : b <= F.band; }))
         && (r.svsN ? r.svsRate <= F.svsMax : F.svsAll)
         && (r.age_days == null || (r.age_days >= a1 && r.age_days <= a2)) && !kidsForGroup.map(String).includes(String(r.kid))
         && (!F.inGroup || !group || (r.kid >= group[0] && r.kid <= group[1]))
@@ -1214,7 +1216,15 @@ async function viewMigrate(param) {
         { key: "age_days", label: "開設", r: true, hs: true, cell: r => r.age_days != null ? `<span class="num">${int(r.age_days)}</span>日` : "–" },
       ],
     });
-    listBox.innerHTML = ""; listBox.append(table);
+    listBox.innerHTML = "";
+    if (group) {
+      const inR = rows.filter(r => r.kid >= group[0] && r.kid <= group[1]);
+      const noD = inR.filter(r => r.jp == null).length;
+      const sum = document.createElement("p"); sum.className = "rangesum";
+      sum.innerHTML = `${esc(ev?.label || "")}の範囲（${group[0]}〜${group[1]}）：<b>${inR.length}王国</b>（うち詳細データ未取得 ${noD}）`;
+      listBox.append(sum);
+    }
+    listBox.append(table);
     listBox.onclick = e => { const b = e.target.closest(".star"); if (!b) return; const k = b.dataset.k; setCands(cands.includes(k) ? cands.filter(x => x !== k) : [...cands, k]); };
   };
   const bindRange = (id, key) => { const el = app.querySelector("#" + id); el.oninput = () => { F[key] = Number(el.value); app.querySelector(`#${id}v`).textContent = el.value; drawList(); }; };
@@ -1224,6 +1234,7 @@ async function viewMigrate(param) {
   app.querySelector("#fgrp").onchange = e => { F.inGroup = e.target.checked; drawList(); };
   app.querySelector("#fnote").onchange = e => { F.noted = e.target.checked; drawList(); };
   app.querySelector("#fout").onchange = e => { F.showOut = e.target.checked; drawList(); };
+  app.querySelector("#fnodata").onchange = e => { F.noData = e.target.checked; drawList(); };
   app.querySelector("#fage1").onchange = e => { F.ageMin = e.target.value; drawList(); };
   app.querySelector("#fage2").onchange = e => { F.ageMax = e.target.value; drawList(); };
   drawList();

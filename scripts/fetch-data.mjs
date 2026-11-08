@@ -3,6 +3,7 @@
 // 必要な環境変数: WOS_API_KEY（GitHub の Secrets に保存）
 
 import fs from "node:fs/promises";
+import crypto from "node:crypto";
 import path from "node:path";
 
 const API_BASE = process.env.WOS_API_BASE || "https://api.whiteoutstats.com/v1";
@@ -26,7 +27,8 @@ let calls = 0;
 let lastCallAt = 0;
 class BudgetExhausted extends Error {}
 
-async function api(pathAndQuery, { counted = true } = {}) {
+async function api(pathAndQuery, { counted = true, quiet = false } = {}) {
+  const shown = quiet ? "(非公開の取得)" : pathAndQuery; // 公開ログにIDを出さない
   if (counted && budget <= 0) throw new BudgetExhausted("本日の回数枠の上限に達しました");
   for (let attempt = 0; attempt < 5; attempt++) {
     const wait = lastCallAt + MIN_INTERVAL_MS - Date.now();
@@ -42,7 +44,7 @@ async function api(pathAndQuery, { counted = true } = {}) {
       if (dayLeft === 0) throw new BudgetExhausted("API側で1日の上限に達しました");
       const reset = Number(res.headers.get("X-RateLimit-Reset-Minute"));
       const ms = reset ? Math.max(1000, reset * 1000 - Date.now() + 500) : 61000;
-      console.warn(`429: ${Math.round(ms / 1000)}秒待って再試行 (${pathAndQuery})`);
+      console.warn(`429: ${Math.round(ms / 1000)}秒待って再試行 (${shown})`);
       await sleep(ms);
       continue;
     }
@@ -50,11 +52,11 @@ async function api(pathAndQuery, { counted = true } = {}) {
     if (!res.ok) {
       const text = await res.text().catch(() => "");
       if (res.status >= 500 && attempt < 4) { await sleep(5000); continue; }
-      throw new Error(`HTTP ${res.status} ${pathAndQuery} ${text.slice(0, 200)}`);
+      throw new Error(quiet ? `HTTP ${res.status}` : `HTTP ${res.status} ${pathAndQuery} ${text.slice(0, 200)}`);
     }
     return res.json();
   }
-  throw new Error(`再試行の上限に達しました: ${pathAndQuery}`);
+  throw new Error(`再試行の上限に達しました: ${shown}`);
 }
 
 // ---------- 応答の形の違いを吸収するヘルパー ----------
@@ -230,6 +232,10 @@ try {
   try { await recordHeroes(fetchState); }
   catch (e) { if (e instanceof BudgetExhausted) throw e; console.error(e); log.push(`英雄: エラー ${e.message}`); }
 
+  // 6) 移民を検討している人（GitHub Secrets の MIGRANT_IDS）。結果は合言葉で暗号化して保存
+  try { await recordMigrantsEncrypted(); }
+  catch (e) { if (e instanceof BudgetExhausted) throw e; log.push("移民（暗号化）: 取得に失敗しました"); }
+
   // 2-b) その他の王国は残り回数の範囲で順番に（次回は続きから）
   try {
     const perRun = config.detail_per_run ?? 1200;
@@ -300,6 +306,42 @@ async function recordSvs() {
     await fs.writeFile(file, JSON.stringify(hist));
     log.push(`SvS: シーズン${season} ${done}組を更新（確定済み${skipped}組はスキップ）`);
   }
+}
+
+// ---------- 移民検討（暗号化） ----------
+// MIGRANT_IDS の書き方：「くに:123456789,ふぁーちゃん:987654321」（表示名:チーフID をカンマ区切り）
+// 公開されるのは暗号文だけ。ID・名前・数値はログにも平文のファイルにも出さない。
+async function recordMigrantsEncrypted() {
+  const ids = process.env.MIGRANT_IDS, pass = process.env.MIGRANT_PASSPHRASE;
+  if (!ids || !pass) return;
+  const list = ids.split(/[,、\n]/).map((x) => x.trim()).filter(Boolean).map((x, i) => {
+    const m = x.match(/^(.*?)[:：]\s*(\d+)$/);
+    return m ? { label: m[1].trim() || `${i + 1}人目`, id: m[2] } : { label: `${i + 1}人目`, id: x.replace(/\D/g, "") };
+  }).filter((x) => x.id);
+  const people = [];
+  for (const [i, m] of list.entries()) {
+    let body = null;
+    try { body = await api(`/players/${m.id}?include=base,ranks,heroes`, { quiet: true }); }
+    catch (e) { if (e instanceof BudgetExhausted) throw e; }
+    const p = body?.player;
+    if (!p) { people.push({ label: m.label, error: "not_found" }); log.push(`移民（暗号化）: ${i + 1}人目が見つかりません`); continue; }
+    const r = body.ranks ?? p.ranks ?? {};
+    people.push({
+      label: m.label, nick_name: p.nick_name ?? null, kid: p.kid ?? null, avatar_url: p.avatar_url ?? null,
+      alliance: p.alliance ? pick(p.alliance, ["abbr", "name", "rank_label"]) : null,
+      power: p.power ?? r.power ?? null, furnace_level: p.furnace_level ?? r.furnace_level ?? null,
+      power_rank: r.power_rank ?? null, state_transfer_score: r.state_transfer_score ?? null, state_transfer_rank: r.state_transfer_rank ?? null,
+      labyrinth: r.labyrinth ?? null, labyrinth_rank: r.labyrinth_rank ?? null,
+      heroes: firstArray(body.heroes ?? p.heroes, ["heroes", "team", "items"]).map(trimHero),
+    });
+  }
+  const plain = Buffer.from(JSON.stringify({ updated_at: now, people }), "utf8");
+  const salt = crypto.randomBytes(16), iv = crypto.randomBytes(12), iter = 200000;
+  const key = crypto.pbkdf2Sync(pass, salt, iter, 32, "sha256");
+  const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
+  const ct = Buffer.concat([cipher.update(plain), cipher.final(), cipher.getAuthTag()]); // ブラウザの AES-GCM と同じ並び（暗号文＋認証タグ）
+  await writeJSON("migrants.enc.json", { v: 1, alg: "AES-256-GCM", kdf: "PBKDF2-SHA256", iter, salt: salt.toString("base64"), iv: iv.toString("base64"), ct: ct.toString("base64") });
+  log.push(`移民（暗号化）: ${people.filter((x) => !x.error).length}人分を暗号化して保存`);
 }
 
 // ---------- 英雄（闘技場の防衛編成） ----------

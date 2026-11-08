@@ -177,15 +177,12 @@ try {
     const boards = body.boards ?? state.boards ?? null;
     await writeJSON(`states/${kid}.json`, { updated_at: now, state: trimState(state), boards: trimBoards(boards) });
     const jp = japaneseShare(boardRows(boards, "personal_power").map((r) => r.nick_name));
-    // 雰囲気の目安：上位20同盟のうち日本語名の同盟の割合（jpa）と、1位同盟の勢力の集中度（dom）
+    // 勢力バランスの目安：1位同盟が上位10同盟の合計戦力に占める割合（dom）
     const al = boardRows(boards, "alliance_power");
-    const kana = /[\u3041-\u309F\u30A1-\u30FF\uFF66-\uFF9F]/;
-    const top20 = al.slice(0, 20);
-    const jpa = top20.length >= 5 ? Math.round((top20.filter((r) => kana.test(`${r.name ?? ""}${r.abbr ?? ""}`)).length / top20.length) * 100) : null;
     const top10 = al.slice(0, 10).map((r) => Number(r.score) || 0);
     const sum10 = top10.reduce((a, b) => a + b, 0);
     const dom = sum10 > 0 ? Math.round((top10[0] / sum10) * 100) : null;
-    if (jp || state.banner_url || jpa != null) lang.states[kid] = { ...(jp || {}), jpa, dom, banner: state.banner_url ?? null, at: now.slice(0, 10) };
+    if (jp || state.banner_url || dom != null) lang.states[kid] = { ...(jp || {}), dom, banner: state.banner_url ?? null, at: now.slice(0, 10) };
     detailDone++;
     return boards;
   }

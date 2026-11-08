@@ -87,6 +87,14 @@ jobs:
             git push
           fi
 
+      # 移民検討専用ページ（どこからもリンクしない・検索エンジンに載せない）を自動生成
+      - name: 移民検討ページを生成
+        run: |
+          sed -e 's/const MODE = "main";/const MODE = "migrate";/' \
+              -e 's|<title>WoS 王国データ</title>|<title>移民検討</title><meta name="robots" content="noindex, nofollow">|' \
+              public/index.html > public/migrate.html
+          grep -q 'const MODE = "migrate";' public/migrate.html
+
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

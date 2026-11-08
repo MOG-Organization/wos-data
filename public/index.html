@@ -177,6 +177,8 @@
   .person label, .filters label { display: grid; grid-template-columns: 6.5em 1fr; align-items: center; gap: 8px; font-size: 13px; color: var(--steel); }
   .person input, .filters input[type=text] { font: inherit; font-size: 16px; padding: 5px 8px; border: 1px solid var(--rime); border-radius: 5px; background: var(--bg); color: var(--ink); min-width: 0; }
   .person input[readonly] { border-style: dashed; }
+  .person input.pname { font-weight: 700; font-size: 15px; border-color: transparent; background: none; padding-left: 0; }
+  .person input.pname:focus { border-color: var(--rime); background: var(--bg); }
   .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px 20px; background: var(--surface); border: 1px solid var(--rime); border-radius: 8px; padding: 12px; margin-bottom: 8px; }
   .filters label { grid-template-columns: 1fr; gap: 4px; }
   .filters input[type=range] { width: 100%; accent-color: var(--ember); }
@@ -200,6 +202,14 @@
   ol.phases li.done { opacity: .55; }
   ol.phases li.cur { outline: 1px solid var(--ember); }
   ol.phases li span { color: var(--steel); }
+  .passbox { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; background: var(--surface); border: 1px solid var(--ember); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; }
+  .passbox label:first-child { display: flex; gap: 8px; align-items: center; font-size: 14px; }
+  .passbox input[type=password] { font: inherit; font-size: 16px; padding: 6px 10px; border: 1px solid var(--rime); border-radius: 5px; background: var(--bg); color: var(--ink); width: 12em; }
+  .linkbtn { font: inherit; font-size: 12px; border: 0; background: none; color: var(--link); cursor: pointer; padding: 0; text-decoration: underline; }
+  .pinfo { font-size: 12px; color: var(--steel); line-height: 1.6; }
+  .pheroes { display: flex; gap: 4px; align-items: center; }
+  .pheroes .dim { margin-left: 4px; font-size: 11px; }
+  .tggrp.warn { color: var(--ember); font-weight: 700; }
   label.check { font-size: 14px; display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
   .jp { display: inline-block; min-width: 3.2em; text-align: right; }
   .jp.hi { color: var(--ember); font-weight: 700; }
@@ -855,25 +865,44 @@ function predictRank(rows, v) {
   return higher + 1;
 }
 const MIG_KEY = "wos-migrate-people";
+const MIG_PASS_KEY = "wos-migrate-pass";
+// 暗号化された移民データを合言葉で復号（ブラウザ標準の Web Crypto。中身はこの端末の中だけで扱う）
+async function decryptMigrants(enc, pass) {
+  const b64 = t => Uint8Array.from(atob(t), c => c.charCodeAt(0));
+  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pass), "PBKDF2", false, ["deriveKey"]);
+  const key = await crypto.subtle.deriveKey({ name: "PBKDF2", salt: b64(enc.salt), iterations: enc.iter, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
+  const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64(enc.iv) }, key, b64(enc.ct));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
 function loadPeople(fromData) {
   let saved = [];
   try { saved = JSON.parse(localStorage.getItem(MIG_KEY) || "[]"); } catch {}
-  const base = (fromData?.people || []).map(p => ({ name: p.name, power: p.power, transfer: p.state_transfer_score, lab: p.labyrinth, auto: true }));
-  const list = base.length ? base : [{ name: "たちばな" }, { name: "ふぁーちゃん" }];
-  return list.map((p, i) => ({ ...p, ...(p.auto ? {} : saved[i] || {}) }));
+  const base = (fromData?.people || []).filter(p => !p.error).map(p => ({ ...p, name: p.label, power: p.power, transfer: p.state_transfer_score, lab: p.labyrinth, auto: true }));
+  const list = base.length ? base : [{ name: "1人目" }, { name: "2人目" }];
+  return list.map((p, i) => ({ ...p, ...(p.auto ? {} : Object.fromEntries(Object.entries(saved[i] || {}).filter(([, v]) => v != null))) }));
 }
 const balanceLabel = d => d == null ? "–" : d >= 40 ? `一強（${d}%）` : d >= 25 ? `やや一強（${d}%）` : `拮抗（${d}%）`;
 
 async function viewMigrate(param) {
   const cands = [...new Set((param || "").split(",").filter(x => /^\d+$/.test(x)))];
-  const [list, lang, meta, tg] = await Promise.all([load("states.json"), load("lang.json"), load("meta.json"), getJSON("transfer-groups.json")]);
-  const migr = null; // 個人の情報はサーバーに置かない（端末にだけ保存）
+  const [list, lang, meta, tg, enc] = await Promise.all([load("states.json"), load("lang.json"), load("meta.json"), getJSON("transfer-groups.json"), load("migrants.enc.json")]);
+  // 暗号化データ：合言葉を覚えている端末なら自動で復号
+  if (enc && !viewMigrate.secret) {
+    let saved = null; try { saved = localStorage.getItem(MIG_PASS_KEY); } catch {}
+    if (saved) { try { viewMigrate.secret = await decryptMigrants(enc, saved); } catch { try { localStorage.removeItem(MIG_PASS_KEY); } catch {} } }
+  }
+  const migr = viewMigrate.secret || null;
   if (!list) { app.innerHTML = `<p class="note">データがまだありません。</p>`; return; }
   const L = lang?.states || {};
   const people = loadPeople(migr);
-  const home = list.states.find(s => String(s.kid) === String(meta?.watch_states?.[0]));
+  const homeKids = migr?.people?.filter(p => p.kid).map(p => p.kid) || [];
+  const home = list.states.find(s => String(s.kid) === String(homeKids[0] ?? meta?.watch_states?.[0]));
   // 移民グループ（公式発表）：自王国と同じグループの王国にしか移民できない
-  const group = (tg?.groups || []).find(([a, b]) => home && home.kid >= a && home.kid <= b) || null;
+  const groupOf = k => (tg?.groups || []).find(([a, b]) => k >= a && k <= b) || null;
+  const kidsForGroup = homeKids.length ? homeKids : (home ? [home.kid] : []);
+  const groupsAll = kidsForGroup.map(groupOf);
+  const sameGroup = groupsAll.length && groupsAll.every(g => g && g === groupsAll[0]);
+  const group = sameGroup ? groupsAll[0] : null;
   const F = viewMigrate.F || (viewMigrate.F = {
     jp: 70, jpa: 50, ageMin: "", ageMax: "", active: 0, inGroup: !!group,
   });
@@ -890,8 +919,14 @@ async function viewMigrate(param) {
     <p class="sub">日本人が多く雰囲気の良い王国を探すためのページです。☆で候補リストに入れた王国はURLに入るので、そのリンクを送り合えば同じ候補を見られます。このページはどこからもリンクしていません。</p>
     <section id="tg"></section>
     <h2>2人の現在地</h2>
+    ${enc && !migr ? `<div class="passbox"><label>合言葉<input type="password" id="mpass" name="mig_pass_search" ${SEARCH_ATTRS} placeholder="合言葉を入力"></label>
+      <label class="check"><input type="checkbox" id="mremember"> この端末で覚える</label><button type="button" class="more" id="mopen" style="margin:0">開く</button><span class="dim" id="mmsg"></span></div>` : ""}
+    ${migr ? `<p class="dim">暗号化データを表示中（${ago(migr.updated_at)} 更新）。<button type="button" class="linkbtn" id="mforget">この端末から合言葉を消す</button></p>` : ""}
     <div class="people">${people.map((p, i) => `<div class="person">
-      <b>${esc(p.name)}</b>${p.auto ? `<span class="tag">自動更新</span>` : ""}
+      <input type="text" class="pname" name="mig_label_${i}" ${SEARCH_ATTRS} data-i="${i}" data-k="name" value="${esc(p.name)}" aria-label="表示名" maxlength="20" ${p.auto ? "readonly" : ""}>
+      ${p.auto ? `<div class="pinfo">${p.kid ? `今いる王国 <a href="./#/state/${p.kid}" target="_blank" rel="noopener">#${p.kid}</a>${groupOf(p.kid) ? `（グループ${tg.groups.indexOf(groupOf(p.kid)) + 1}）` : ""}` : ""}${p.alliance?.abbr ? `・[${esc(p.alliance.abbr)}]` : ""}${p.furnace_level ? `・溶鉱炉Lv${esc(p.furnace_level)}` : ""}
+        ${p.power_rank || p.state_transfer_rank || p.labyrinth_rank ? `<br>王国内順位：戦力 ${esc(p.power_rank ?? "–")}位・移民スコア ${esc(p.state_transfer_rank ?? "–")}位・地底探検 ${esc(p.labyrinth_rank ?? "–")}位` : ""}</div>
+        ${(p.heroes || []).length ? `<div class="pheroes">${p.heroes.slice().sort((a, b) => (a.position ?? 9) - (b.position ?? 9)).map(h => `<span title="${esc(heroName(h))}">${avatar(heroIcon(h), heroName(h), "hicon")}</span>`).join("")}<span class="dim">防衛編成</span></div>` : ""}` : ""}
       <label>戦力<input type="text" inputmode="decimal" name="mig_power_${i}" ${SEARCH_ATTRS} data-i="${i}" data-k="power" value="${p.power ? jp(p.power) : ""}" placeholder="例：6.2億" ${p.auto ? "readonly" : ""}></label>
       <label>移民スコア<input type="text" inputmode="decimal" name="mig_transfer_${i}" ${SEARCH_ATTRS} data-i="${i}" data-k="transfer" value="${p.transfer ? jp(p.transfer) : ""}" placeholder="例：250万" ${p.auto ? "readonly" : ""}></label>
       <label>地底探検<input type="text" inputmode="numeric" name="mig_lab_${i}" ${SEARCH_ATTRS} data-i="${i}" data-k="lab" value="${p.lab ?? ""}" placeholder="例：1500" ${p.auto ? "readonly" : ""}></label>
@@ -922,17 +957,38 @@ async function viewMigrate(param) {
     const inGroupCount = group ? rows.filter(r => r.kid >= group[0] && r.kid <= group[1]).length : 0;
     tgBox.innerHTML = `<div class="tgbox ${state === "開催中" ? "live" : ""}">
       <div><b>移民イベント ${state}</b>　${fmt(tg.event.start)} 〜 ${fmt(tg.event.end)}（日本時間）${state === "開催中" ? `　<span class="tag">終了まで${left(end - now)}</span>` : ""}</div>
-      ${group ? `<div class="tggrp">自王国 #${home.kid} は <b>グループ ${tg.groups.indexOf(group) + 1}（王国 ${group[0]}〜${group[1]}）</b>。移民できるのはこの範囲の王国だけです（データのある王国 ${inGroupCount}）。</div>` : `<div class="tggrp">自王国の移民グループが今回の発表に含まれていません。</div>`}
+      ${group ? `<div class="tggrp">${kidsForGroup.length > 1 ? `2人の今いる王国（${kidsForGroup.map(k => "#" + k).join("・")}）はどちらも` : `自王国 #${home.kid} は`} <b>グループ ${tg.groups.indexOf(group) + 1}（王国 ${group[0]}〜${group[1]}）</b>。移民できるのはこの範囲の王国だけです（データのある王国 ${inGroupCount}）。</div>`
+        : kidsForGroup.length > 1 && groupsAll.every(Boolean) ? `<div class="tggrp warn">2人の移民グループが違います（${kidsForGroup.map((k, j) => `#${k}＝グループ${tg.groups.indexOf(groupsAll[j]) + 1}`).join("、")}）。今回のイベントでは同じ王国へは移れません。</div>`
+        : `<div class="tggrp">今いる王国の移民グループが今回の発表に含まれていません。</div>`}
       <ol class="phases">${(tg.event.phases || []).map(p => { const a = Date.parse(p.start), b = Date.parse(p.end); const cur = now >= a && now <= b;
         return `<li class="${cur ? "cur" : now > b ? "done" : ""}"><b>${esc(p.name)}</b><span>${fmt(p.start)} 〜 ${fmt(p.end)}</span>${cur ? `<span class="tag">いまここ・${left(b - now)}</span>` : ""}</li>`; }).join("")}</ol>
       <p class="dim">出典：Century Games 公式サイトの告知（11月6日）。各段階の日付は過去の公式告知の日数（準備3日・招待2日・自由移民2日）に当てはめた目安です。移民の条件として、前回の移民から25日以上たっていること、移民先にキャラクターが4つ未満であること、大統領でないことなどがあります。正確なルールはゲーム内のイベント画面で確認してください。</p>
     </div>`;
   }
 
+  // 合言葉
+  const openBtn = app.querySelector("#mopen");
+  if (openBtn) {
+    const tryOpen = async () => {
+      const pass = app.querySelector("#mpass").value;
+      if (!pass) return;
+      app.querySelector("#mmsg").textContent = "確認中…";
+      try {
+        viewMigrate.secret = await decryptMigrants(enc, pass);
+        if (app.querySelector("#mremember").checked) { try { localStorage.setItem(MIG_PASS_KEY, pass); } catch {} }
+        viewMigrate.drawn = false; route();
+      } catch { app.querySelector("#mmsg").textContent = "合言葉が違います"; }
+    };
+    openBtn.onclick = tryOpen;
+    app.querySelector("#mpass").onkeydown = e => { if (e.key === "Enter") tryOpen(); };
+  }
+  const forget = app.querySelector("#mforget");
+  if (forget) forget.onclick = () => { try { localStorage.removeItem(MIG_PASS_KEY); } catch {} viewMigrate.secret = null; route(); };
+
   // 2人の数値（手入力時）を保存
   app.querySelectorAll(".person input:not([readonly])").forEach(inp => inp.onchange = () => {
     const i = Number(inp.dataset.i), k = inp.dataset.k;
-    const v = k === "lab" ? Number(inp.value) || null : parseJp(inp.value);
+    const v = k === "name" ? (inp.value.trim() || `${i + 1}人目`) : k === "lab" ? Number(inp.value) || null : parseJp(inp.value);
     people[i] = { ...people[i], [k]: v };
     try { localStorage.setItem(MIG_KEY, JSON.stringify(people.map(p => ({ name: p.name, power: p.power, transfer: p.transfer, lab: p.lab })))); } catch {}
     drawCands();
@@ -946,7 +1002,7 @@ async function viewMigrate(param) {
     const table = sortableTable({
       rows, initialSort: { key: "jp", dir: "desc" }, pageSize: 50,
       filter: () => r => (r.jp ?? -1) >= F.jp && (F.jpa ? (r.jpa ?? -1) >= F.jpa : true) && (F.active ? (r.act ?? -1) >= F.active : true)
-        && (r.age_days == null || (r.age_days >= a1 && r.age_days <= a2)) && String(r.kid) !== String(home?.kid)
+        && (r.age_days == null || (r.age_days >= a1 && r.age_days <= a2)) && !kidsForGroup.map(String).includes(String(r.kid))
         && (!F.inGroup || !group || (r.kid >= group[0] && r.kid <= group[1])),
       columns: [
         { key: "_star", label: "", sort: false, cell: r => star(r.kid) },

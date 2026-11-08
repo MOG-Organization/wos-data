@@ -332,13 +332,20 @@ async function recordMigrantsEncrypted() {
       heroes: firstArray(body.heroes ?? p.heroes, ["heroes", "team", "items"]).map(trimHero),
     });
   }
-  const plain = Buffer.from(JSON.stringify({ updated_at: now, people }), "utf8");
+  // 王国ごとのメモのリンク（MIGRANT_NOTES：1行に「王国番号 URL」。同じ王国に複数行でも可）
+  const notes = {};
+  for (const line of String(process.env.MIGRANT_NOTES || "").split(/\r?\n/)) {
+    const m = line.trim().match(/^#?(\d{1,5})[\s,:：]+(https:\/\/\S+)(?:\s+(.+))?$/);
+    if (!m) continue;
+    (notes[m[1]] ||= []).push({ url: m[2], label: (m[3] || "").trim() || null });
+  }
+  const plain = Buffer.from(JSON.stringify({ updated_at: now, people, notes }), "utf8");
   const salt = crypto.randomBytes(16), iv = crypto.randomBytes(12), iter = 200000;
   const key = crypto.pbkdf2Sync(pass, salt, iter, 32, "sha256");
   const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
   const ct = Buffer.concat([cipher.update(plain), cipher.final(), cipher.getAuthTag()]); // ブラウザの AES-GCM と同じ並び（暗号文＋認証タグ）
   await writeJSON("migrants.enc.json", { v: 1, alg: "AES-256-GCM", kdf: "PBKDF2-SHA256", iter, salt: salt.toString("base64"), iv: iv.toString("base64"), ct: ct.toString("base64") });
-  log.push(`移民（暗号化）: ${people.filter((x) => !x.error).length}人分を暗号化して保存`);
+  log.push(`移民（暗号化）: ${people.filter((x) => !x.error).length}人分とメモ${Object.keys(notes).length}王国分を暗号化して保存`);
 }
 
 // ---------- 英雄（闘技場の防衛編成） ----------

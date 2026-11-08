@@ -50,6 +50,7 @@ jobs:
           WOS_API_KEY: ${{ secrets.WOS_API_KEY }}
           MIGRANT_IDS: ${{ secrets.MIGRANT_IDS }}
           MIGRANT_PASSPHRASE: ${{ secrets.MIGRANT_PASSPHRASE }}
+          MIGRANT_NOTES: ${{ secrets.MIGRANT_NOTES }}
         run: node scripts/fetch-data.mjs
 
       - name: データを保存（キャッシュ）

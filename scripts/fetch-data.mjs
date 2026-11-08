@@ -182,7 +182,16 @@ try {
     const top10 = al.slice(0, 10).map((r) => Number(r.score) || 0);
     const sum10 = top10.reduce((a, b) => a + b, 0);
     const dom = sum10 > 0 ? Math.round((top10[0] / sum10) * 100) : null;
-    if (jp || state.banner_url || dom != null) lang.states[kid] = { ...(jp || {}), dom, banner: state.banner_url ?? null, at: now.slice(0, 10) };
+    // 「型ができているか」の目安：上位100人のうち最大の同盟に属する割合（top1）と、80人以上の同盟の数（big）
+    const pp = boardRows(boards, "personal_power");
+    const cnt = new Map();
+    for (const r of pp) if (r.alliance_abbr) cnt.set(r.alliance_abbr, (cnt.get(r.alliance_abbr) || 0) + 1);
+    const top1 = pp.length >= 30 ? Math.round((Math.max(0, ...cnt.values()) / pp.length) * 100) : null;
+    const big = al.length ? al.filter((r) => (Number(r.member_count) || 0) >= 80).length : null;
+    // 戦力のライン（10位・30位・100位）と、移民スコアの100位ライン：メンバーが何位に入れるかの判定用
+    const line = (rows, n) => (rows.length >= n ? Number(rows[n - 1].score) || null : null);
+    const ln = { p10: line(pp, 10), p30: line(pp, 30), p100: line(pp, 100), t100: line(boardRows(boards, "state_transfer"), 100) };
+    if (jp || state.banner_url || dom != null) lang.states[kid] = { ...(jp || {}), dom, top1, big, ...ln, banner: state.banner_url ?? null, at: now.slice(0, 10) };
     detailDone++;
     return boards;
   }
@@ -434,6 +443,14 @@ async function buildSvsPages() {
   }
   seasons.sort((x, y) => y.season - x.season);
   await writeJSON("svs/index.json", { seasons });
+  // 王国ごとの通算成績（準備期間の点数で判定、確定分のみ）
+  const summary = {};
+  for (const [kid, list] of perState) {
+    const fin = list.filter((e) => e.final && !e.bye && e.score != null && e.opponent_score != null);
+    const w = fin.filter((e) => e.score > e.opponent_score).length;
+    summary[kid] = { w, l: fin.length - w, n: fin.length };
+  }
+  await writeJSON("svs/summary.json", summary);
 }
 
 function topAllianceTags(boards, n) {

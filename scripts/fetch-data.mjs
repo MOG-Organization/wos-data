@@ -69,7 +69,7 @@ function firstArray(obj, keys) {
 const STATE_FIELDS = [
   "kid", "name", "player_count", "located", "active_7d", "alliance_count", "age_days", "opened_on",
   "power", "avg_power", "power_rank", "activity_rank", "health", "power_gain_7d", "state_transfer_score",
-  "gov_power", "alliance_power", "labyrinth", "banner_url",
+  "gov_power", "alliance_power", "labyrinth", "banner_url", "active_players", "active_30d",
 ];
 const pick = (o, fields) => Object.fromEntries(fields.filter((f) => o?.[f] !== undefined).map((f) => [f, o[f]]));
 
@@ -86,7 +86,7 @@ const safeTag = (tag) => encodeURIComponent(tag).replace(/%/g, "_");
 // ---------- 保存容量を抑えるため、サイトで使う項目だけ残す ----------
 // API の王国詳細は 1 件 600KB 前後あり、全王国分だと GitHub Pages の上限(1GB)を超えるため
 const KEEP_BOARDS = new Set([
-  "alliance_power", "personal_power",
+  "alliance_power", "personal_power", "state_transfer",
   "labyrinth", "land_of_heroes", "cave_of_monsters", "charm_mine", "research_center", "gear_forge", "gaia_heart",
 ]);
 const ALLIANCE_ROW = ["rank", "abbr", "name", "score", "member_count", "leader_name"];
@@ -175,7 +175,15 @@ try {
     const boards = body.boards ?? state.boards ?? null;
     await writeJSON(`states/${kid}.json`, { updated_at: now, state: trimState(state), boards: trimBoards(boards) });
     const jp = japaneseShare(boardRows(boards, "personal_power").map((r) => r.nick_name));
-    if (jp || state.banner_url) lang.states[kid] = { ...(jp || {}), banner: state.banner_url ?? null, at: now.slice(0, 10) };
+    // 雰囲気の目安：上位20同盟のうち日本語名の同盟の割合（jpa）と、1位同盟の勢力の集中度（dom）
+    const al = boardRows(boards, "alliance_power");
+    const kana = /[\u3041-\u309F\u30A1-\u30FF\uFF66-\uFF9F]/;
+    const top20 = al.slice(0, 20);
+    const jpa = top20.length >= 5 ? Math.round((top20.filter((r) => kana.test(`${r.name ?? ""}${r.abbr ?? ""}`)).length / top20.length) * 100) : null;
+    const top10 = al.slice(0, 10).map((r) => Number(r.score) || 0);
+    const sum10 = top10.reduce((a, b) => a + b, 0);
+    const dom = sum10 > 0 ? Math.round((top10[0] / sum10) * 100) : null;
+    if (jp || state.banner_url || jpa != null) lang.states[kid] = { ...(jp || {}), jpa, dom, banner: state.banner_url ?? null, at: now.slice(0, 10) };
     detailDone++;
     return boards;
   }

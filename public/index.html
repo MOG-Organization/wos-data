@@ -197,6 +197,15 @@
   .tgbox { background: var(--surface); border: 1px solid var(--rime); border-radius: 8px; padding: 12px 14px; margin: 0 0 8px; display: grid; gap: 8px; font-size: 14px; }
   .tgbox.live { border-color: var(--ember); }
   .tggrp b { color: var(--ember); }
+  .bands { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+  .bands span { font-size: 11px; padding: 0 5px; border: 1px solid var(--rime); border-radius: 4px; white-space: nowrap; }
+  .filters select { font: inherit; font-size: 16px; padding: 5px 8px; border: 1px solid var(--rime); border-radius: 5px; background: var(--bg); color: var(--ink); }
+  .filters .check { font-size: 13px; color: var(--steel); }
+  .evhead { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+  .evhead .cd { color: var(--ember); margin-left: auto; }
+  .tag.rumor { background: var(--rime); }
+  .evseg { margin: 0 0 4px; }
+  .evseg button .tag { margin-left: 6px; }
   ol.phases { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
   ol.phases li { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; padding: 6px 8px; border-radius: 6px; background: var(--bg); font-size: 13px; }
   ol.phases li.done { opacity: .55; }
@@ -936,36 +945,51 @@ function notesFor(kid, secret) {
   return mine && !shared.some(x => x.url === mine) ? [...shared, { url: mine, label: null, shared: false }] : shared;
 }
 const noteLabel = u => /discord(app)?\.com|discord\.gg/.test(u) ? "Discordのメモ" : "メモ";
+// メンバーがその王国の戦力で何位あたりに入るか（10位・30位・100位のラインと比べる）
+function powerBand(v, r) {
+  if (!v || r.p100 == null && r.p30 == null && r.p10 == null) return null;
+  if (r.p10 != null && v >= r.p10) return 10;
+  if (r.p30 != null && v >= r.p30) return 30;
+  if (r.p100 != null && v >= r.p100) return 100;
+  return r.p100 != null ? 999 : null;
+}
+const bandLabel = b => b == null ? "–" : b === 999 ? "圏外" : `${b}位内`;
 const balanceLabel = d => d == null ? "–" : d >= 40 ? `一強（${d}%）` : d >= 25 ? `やや一強（${d}%）` : `拮抗（${d}%）`;
 
 async function viewMigrate(param) {
   const cands = [...new Set((param || "").split(",").filter(x => /^\d+$/.test(x)))];
-  const [list, lang, meta, tg, enc] = await Promise.all([load("states.json"), load("lang.json"), load("meta.json"), getJSON("transfer-groups.json"), load("migrants.enc.json")]);
+  const [list, lang, meta, tg, enc, svsSum] = await Promise.all([load("states.json"), load("lang.json"), load("meta.json"), getJSON("transfer-groups.json"), load("migrants.enc.json"), load("svs/summary.json")]);
   // 暗号化データ：パスフレーズを覚えている端末なら自動で復号
   if (enc && !viewMigrate.secret) {
     let saved = null; try { saved = localStorage.getItem(MIG_PASS_KEY); } catch {}
     if (saved) { try { viewMigrate.secret = await decryptMigrants(enc, saved); viewMigrate.pass = saved; } catch { try { localStorage.removeItem(MIG_PASS_KEY); } catch {} } }
   }
   const migr = viewMigrate.secret || null;
+  // 移民イベント（12月の噂・11月の公式など）。どれを基準に検討するかを選べる
+  const events = tg?.events || (tg?.event ? [{ id: "cur", label: "今回の移民", status: "公式", ...tg.event, groups: tg.groups }] : []);
+  const ev = events.find(e => e.id === (viewMigrate.evId || tg?.default)) || events[0] || null;
   if (!list) { app.innerHTML = `<p class="note">データがまだありません。</p>`; return; }
   const L = lang?.states || {};
   const people = loadPeople(migr);
   const homeKids = migr?.people?.filter(p => p.kid).map(p => p.kid) || [];
   const home = list.states.find(s => String(s.kid) === String(homeKids[0] ?? meta?.watch_states?.[0]));
   // 移民グループ（公式発表）：自王国と同じグループの王国にしか移民できない
-  const groupOf = k => (tg?.groups || []).find(([a, b]) => k >= a && k <= b) || null;
+  const groupOf = k => (ev?.groups || []).find(([a, b]) => k >= a && k <= b) || null;
   const kidsForGroup = homeKids.length ? homeKids : (home ? [home.kid] : []);
   const groupsAll = kidsForGroup.map(groupOf);
   const sameGroup = groupsAll.length && groupsAll.every(g => g && g === groupsAll[0]);
   const group = sameGroup ? groupsAll[0] : null;
   const F = viewMigrate.F || (viewMigrate.F = {
-    jp: 70, ageMin: "", ageMax: "", inGroup: !!group,
+    jp: 40, ageMin: "", ageMax: "", inGroup: !!group, top1: 100, band: 0, svsMax: 100, svsAll: true,
   });
   const setCands = c => { location.hash = "#/" + c.join(","); };
   let details = [];
   const rows = list.states.map(s => {
     const x = L[s.kid] || {};
-    return { ...s, jp: x.jp ?? null, dom: x.dom ?? null, _power: totalPower(s) };
+    const sv = svsSum?.[s.kid];
+    return { ...s, jp: x.jp ?? null, dom: x.dom ?? null, top1: x.top1 ?? null, big: x.big ?? null,
+      p10: x.p10 ?? null, p30: x.p30 ?? null, p100: x.p100 ?? null, t100: x.t100 ?? null,
+      svsN: sv?.n || 0, svsW: sv?.w || 0, svsRate: sv?.n ? Math.round(sv.w / sv.n * 100) : null, _power: totalPower(s) };
   });
 
   app.innerHTML = `
@@ -979,7 +1003,7 @@ async function viewMigrate(param) {
     ${migr ? `<p class="dim">暗号化データを表示中（${ago(migr.updated_at)} 更新）。<button type="button" class="linkbtn" id="mforget">この端末からパスフレーズを消す</button></p>` : ""}
     <div class="people">${people.map((p, i) => `<div class="person">
       <input type="text" class="pname" name="mig_label_${i}" ${SEARCH_ATTRS} data-i="${i}" data-k="name" value="${esc(p.name)}" aria-label="表示名" maxlength="20" ${p.auto ? "readonly" : ""}>
-      ${p.auto ? `<div class="pinfo">${p.kid ? `今いる王国 <a href="./#/state/${p.kid}" target="_blank" rel="noopener">#${p.kid}</a>${groupOf(p.kid) ? `（グループ${tg.groups.indexOf(groupOf(p.kid)) + 1}）` : ""}` : ""}${p.alliance?.abbr ? `・[${esc(p.alliance.abbr)}]` : ""}${p.furnace_level ? `・溶鉱炉Lv${esc(p.furnace_level)}` : ""}
+      ${p.auto ? `<div class="pinfo">${p.kid ? `今いる王国 <a href="./#/state/${p.kid}" target="_blank" rel="noopener">#${p.kid}</a>${groupOf(p.kid) ? `（${esc(ev.label)}：${groupOf(p.kid)[0]}〜${groupOf(p.kid)[1]}）` : ""}` : ""}${p.alliance?.abbr ? `・[${esc(p.alliance.abbr)}]` : ""}${p.furnace_level ? `・溶鉱炉Lv${esc(p.furnace_level)}` : ""}
         ${p.power_rank || p.state_transfer_rank || p.labyrinth_rank ? `<br>王国内順位：戦力 ${esc(p.power_rank ?? "–")}位・移民スコア ${esc(p.state_transfer_rank ?? "–")}位・地底探検 ${esc(p.labyrinth_rank ?? "–")}位` : ""}</div>
         ${(p.heroes || []).length ? `<div class="pheroes">${p.heroes.slice().sort((a, b) => (a.position ?? 9) - (b.position ?? 9)).map(h => `<span title="${esc(heroName(h))}">${avatar(heroIcon(h), heroName(h), "hicon")}</span>`).join("")}<span class="dim">防衛編成</span></div>` : ""}` : ""}
       <label>戦力<input type="text" inputmode="decimal" name="mig_power_${i}" ${SEARCH_ATTRS} data-i="${i}" data-k="power" value="${p.power ? jp(p.power) : ""}" placeholder="例：6.2億" ${p.auto ? "readonly" : ""}></label>
@@ -1000,30 +1024,40 @@ async function viewMigrate(param) {
     <h2>王国を探す</h2>
     <div class="filters">
       <label><span>日本語名 <b id="fjpv">${F.jp}</b>%以上</span><input type="range" id="fjp" min="0" max="100" step="5" value="${F.jp}"></label>
+      <label><span>最大の同盟の占有率 <b id="ftop1v">${F.top1}</b>%以下</span><input type="range" id="ftop1" min="10" max="100" step="5" value="${F.top1}"></label>
+      <label><span>メンバー全員の戦力順位</span><select id="fband" name="band_search">${[[0, "指定しない"], [10, "全員が10位以内"], [30, "全員が30位以内"], [100, "全員が100位以内"]].map(([v, t]) => `<option value="${v}" ${F.band === v ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+      <label><span>SvS（準備期間）の勝率 <b id="fsvsv">${F.svsMax}</b>%以下</span><input type="range" id="fsvs" min="0" max="100" step="10" value="${F.svsMax}">
+        <span class="check"><input type="checkbox" id="fsvsall" ${F.svsAll ? "checked" : ""}> 記録のない王国も表示</span></label>
       <label class="check" style="align-self:end"><input type="checkbox" id="fgrp" ${F.inGroup ? "checked" : ""} ${group ? "" : "disabled"}> 移民グループ内（${group ? `${group[0]}〜${group[1]}` : "情報なし"}）だけ</label>
       <label class="check" style="align-self:end"><input type="checkbox" id="fnote" ${F.noted ? "checked" : ""}> 📝 メモがある王国だけ</label>
       <label><span>開設からの日数</span><span class="rng"><input type="text" inputmode="numeric" id="fage1" name="age_min_search" ${SEARCH_ATTRS} value="${F.ageMin}" placeholder="下限">〜<input type="text" inputmode="numeric" id="fage2" name="age_max_search" ${SEARCH_ATTRS} value="${F.ageMax}" placeholder="上限"></span></label>
     </div>
-    <p class="dim">日本語名＝その王国の個人戦力上位100人のうち、名前にひらがな・カタカナを含む人の割合（漢字だけ・ローマ字の名前は数えないため低めに出ます）。勢力バランス＝1位の同盟が上位10同盟の合計戦力に占める割合。どちらも詳細を取得済みの王国だけ表示されます。</p>
+    <p class="dim"><b>型ができていない王国の目安</b>：「最大の同盟の占有率」が低い（上位100人が1つの同盟に集まっていない）、「大同盟」が少ない、SvSの勝率が低い、など。メンバーが上位に入れるほど、作戦や指揮に関わりやすくなります。<br>
+      日本語名＝個人戦力上位100人のうち、名前にひらがな・カタカナを含む人の割合。最大の同盟の占有率＝個人戦力上位100人のうち、いちばん多い同盟に属する人の割合。大同盟＝メンバー80人以上の同盟の数。メンバーの順位＝各メンバーの戦力を、その王国の10位・30位・100位のラインと比べた目安。SvS＝準備期間の点数での通算勝敗（Frosty加入後の記録のみ）。どれも詳細を取得済みの王国だけ表示されます。</p>
     <div id="mlist"></div>`;
 
-  // 今回の移民イベントと移民範囲
+  // 移民イベントのスケジュールと移民範囲
   const tgBox = app.querySelector("#tg");
-  if (tg?.event) {
+  if (ev) {
     const now = Date.now(), fmt = d => new Date(d).toLocaleString("ja-JP", { month: "numeric", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit" });
-    const end = Date.parse(tg.event.end), start = Date.parse(tg.event.start);
+    const end = Date.parse(ev.end), start = Date.parse(ev.start);
     const state = now < start ? "これから" : now <= end ? "開催中" : "終了";
-    const left = ms => { const h = Math.floor(ms / 3600000); return h >= 24 ? `あと${Math.floor(h / 24)}日${h % 24}時間` : `あと${h}時間`; };
+    const left = ms => { const h = Math.floor(ms / 3600000); return h >= 24 ? `あと${Math.floor(h / 24)}日${h % 24 ? h % 24 + "時間" : ""}` : `あと${h}時間`; };
     const inGroupCount = group ? rows.filter(r => r.kid >= group[0] && r.kid <= group[1]).length : 0;
     tgBox.innerHTML = `<div class="tgbox ${state === "開催中" ? "live" : ""}">
-      <div><b>移民イベント ${state}</b>　${fmt(tg.event.start)} 〜 ${fmt(tg.event.end)}（日本時間）${state === "開催中" ? `　<span class="tag">終了まで${left(end - now)}</span>` : ""}</div>
-      ${group ? `<div class="tggrp">${kidsForGroup.length > 1 ? `メンバーの今いる王国（${[...new Set(kidsForGroup)].map(k => "#" + k).join("・")}）はすべて` : `自王国 #${home.kid} は`} <b>グループ ${tg.groups.indexOf(group) + 1}（王国 ${group[0]}〜${group[1]}）</b>。移民できるのはこの範囲の王国だけです（データのある王国 ${inGroupCount}）。</div>`
-        : kidsForGroup.length > 1 && groupsAll.every(Boolean) ? `<div class="tggrp warn">メンバーの移民グループが分かれています（${kidsForGroup.map((k, j) => `#${k}＝グループ${tg.groups.indexOf(groupsAll[j]) + 1}`).join("、")}）。今回のイベントでは全員が同じ王国へ移ることはできません。</div>`
-        : `<div class="tggrp">今いる王国の移民グループが今回の発表に含まれていません。</div>`}
-      <ol class="phases">${(tg.event.phases || []).map(p => { const a = Date.parse(p.start), b = Date.parse(p.end); const cur = now >= a && now <= b;
-        return `<li class="${cur ? "cur" : now > b ? "done" : ""}"><b>${esc(p.name)}</b><span>${fmt(p.start)} 〜 ${fmt(p.end)}</span>${cur ? `<span class="tag">いまここ・${left(b - now)}</span>` : ""}</li>`; }).join("")}</ol>
-      <p class="dim">出典：Century Games 公式サイトの告知（11月6日）。各段階の日付は過去の公式告知の日数（準備3日・招待2日・自由移民2日）に当てはめた目安です。移民の条件として、前回の移民から25日以上たっていること、移民先にキャラクターが4つ未満であること、執政官でないことなどがあります。正確なルールはゲーム内のイベント画面で確認してください。</p>
+      ${events.length > 1 ? `<div class="seg evseg" role="tablist">${events.map(e => `<button type="button" role="tab" data-ev="${esc(e.id)}" aria-selected="${e.id === ev.id}">${esc(e.label)}<span class="tag">${esc(e.status)}</span></button>`).join("")}</div>` : ""}
+      <div class="evhead"><b>${esc(ev.label)}</b><span class="tag ${ev.status === "噂" ? "rumor" : ""}">${esc(ev.status)}</span>
+        <span>${fmt(ev.start)} 〜 ${fmt(ev.end)}（日本時間）</span>
+        <b class="cd">${state === "これから" ? `開始まで${left(start - now)}` : state === "開催中" ? `開催中・終了まで${left(end - now)}` : "終了しました"}</b></div>
+      ${ev.status === "噂" ? `<div class="tggrp warn">この日程とグループは公式発表前の噂です。公式の告知（通常は開始の数日前）が出たら、内容が変わる可能性があります。</div>` : ""}
+      ${group ? `<div class="tggrp">${kidsForGroup.length > 1 ? `メンバーの今いる王国（${[...new Set(kidsForGroup)].map(k => "#" + k).join("・")}）はすべて` : `自王国 #${home.kid} は`} <b>王国 ${group[0]}〜${group[1]}</b> のグループです。移民できるのはこの範囲の王国だけです（データのある王国 ${inGroupCount}）。</div>`
+        : kidsForGroup.length > 1 && groupsAll.every(Boolean) ? `<div class="tggrp warn">メンバーの移民グループが分かれています（${kidsForGroup.map((k, j) => `#${k}＝${groupsAll[j][0]}〜${groupsAll[j][1]}`).join("、")}）。このイベントでは全員が同じ王国へ移ることはできません。</div>`
+        : `<div class="tggrp">今いる王国がこのイベントのグループ表に含まれていません。</div>`}
+      <ol class="phases">${(ev.phases || []).map(p => { const a = Date.parse(p.start), b = Date.parse(p.end); const cur = now >= a && now <= b;
+        return `<li class="${cur ? "cur" : now > b ? "done" : ""}"><b>${esc(p.name)}</b><span>${fmt(p.start)} 〜 ${fmt(p.end)}</span>${cur ? `<span class="tag">いまここ・${left(b - now)}</span>` : now < a && p === ev.phases[0] ? `<span class="tag">${left(a - now)}</span>` : ""}</li>`; }).join("")}</ol>
+      <p class="dim">${ev.status === "公式" ? "出典：Century Games 公式サイトの告知。" : "出典：メンバー提供の表（噂）。"}各段階の日付は、過去の公式告知の日数（準備3日・招待2日・自由移民2日）に当てはめた目安です。移民の条件として、前回の移民から25日以上たっていること、移民先にキャラクターが4つ未満であること、執政官でないことなどがあります。正確なルールはゲーム内のイベント画面で確認してください。</p>
     </div>`;
+    tgBox.querySelectorAll("[data-ev]").forEach(btn => btn.onclick = () => { viewMigrate.evId = btn.dataset.ev; viewMigrate.F = null; viewMigrate.drawn = false; route(); });
   }
 
   // パスフレーズ
@@ -1074,7 +1108,7 @@ async function viewMigrate(param) {
     const v = k === "name" ? (inp.value.trim() || `${i + 1}人目`) : k === "lab" ? Number(inp.value) || null : parseJp(inp.value);
     people[i] = { ...people[i], [k]: v };
     try { localStorage.setItem(MIG_KEY, JSON.stringify(people.map(p => ({ name: p.name, power: p.power, transfer: p.transfer, lab: p.lab })))); } catch {}
-    drawCands();
+    drawCands(); drawList();
   });
 
   // 一覧
@@ -1083,8 +1117,11 @@ async function viewMigrate(param) {
   const drawList = () => {
     const a1 = Number(F.ageMin) || 0, a2 = Number(F.ageMax) || Infinity;
     const table = sortableTable({
-      rows, initialSort: { key: "jp", dir: "desc" }, pageSize: 50,
+      rows, initialSort: { key: "kid", dir: "asc" }, pageSize: 50,
       filter: () => r => (r.jp ?? -1) >= F.jp
+        && (F.top1 >= 100 || (r.top1 != null && r.top1 <= F.top1))
+        && (!F.band || people.every(p => { const b = powerBand(p.power, r); return b != null && b <= F.band; }))
+        && (r.svsN ? r.svsRate <= F.svsMax : F.svsAll)
         && (r.age_days == null || (r.age_days >= a1 && r.age_days <= a2)) && !kidsForGroup.map(String).includes(String(r.kid))
         && (!F.inGroup || !group || (r.kid >= group[0] && r.kid <= group[1]))
         && (!F.noted || notesFor(r.kid, migr).length > 0),
@@ -1092,8 +1129,11 @@ async function viewMigrate(param) {
         { key: "_star", label: "", sort: false, cell: r => star(r.kid) },
         { key: "kid", label: "王国", cell: r => `<a href="./#/state/${r.kid}" target="_blank" rel="noopener"><span class="num">#${r.kid}</span></a>${notesFor(r.kid, migr).length ? ` <span title="メモあり">📝</span>` : ""}` },
         { key: "jp", label: "日本語名", r: true, cell: r => jpBadge(r.jp) },
-        { key: "dom", label: "勢力バランス", hs: true, cell: r => balanceLabel(r.dom) },
-        { key: "_power", label: "総戦力", r: true, cell: r => `<span class="num">${jp(r._power)}</span>` },
+        { key: "_band", label: "メンバーの順位", sort: false, cell: r => people.some(p => p.power) ? `<span class="bands">${people.map(p => `<span title="${esc(p.name)}">${bandLabel(powerBand(p.power, r))}</span>`).join("")}</span>` : `<span class="dim">戦力未入力</span>` },
+        { key: "top1", label: "最大同盟の占有", r: true, cell: r => r.top1 != null ? `<span class="num">${r.top1}%</span>` : "–" },
+        { key: "big", label: "大同盟", r: true, hs: true, cell: r => r.big != null ? `<span class="num">${r.big}</span>` : "–" },
+        { key: "svsRate", label: "SvS", r: true, cell: r => r.svsN ? `<span class="num">${r.svsW}勝${r.svsN - r.svsW}敗</span>` : `<span class="dim">–</span>` },
+        { key: "_power", label: "総戦力", r: true, hs: true, cell: r => `<span class="num">${jp(r._power)}</span>` },
         { key: "state_transfer_score", label: "移民スコア", r: true, hs: true, cell: r => `<span class="num">${jp(r.state_transfer_score)}</span>` },
         { key: "age_days", label: "開設", r: true, hs: true, cell: r => r.age_days != null ? `<span class="num">${int(r.age_days)}</span>日` : "–" },
       ],
@@ -1102,7 +1142,9 @@ async function viewMigrate(param) {
     listBox.onclick = e => { const b = e.target.closest(".star"); if (!b) return; const k = b.dataset.k; setCands(cands.includes(k) ? cands.filter(x => x !== k) : [...cands, k]); };
   };
   const bindRange = (id, key) => { const el = app.querySelector("#" + id); el.oninput = () => { F[key] = Number(el.value); app.querySelector(`#${id}v`).textContent = el.value; drawList(); }; };
-  bindRange("fjp", "jp");
+  bindRange("fjp", "jp"); bindRange("ftop1", "top1"); bindRange("fsvs", "svsMax");
+  app.querySelector("#fband").onchange = e => { F.band = Number(e.target.value); drawList(); };
+  app.querySelector("#fsvsall").onchange = e => { F.svsAll = e.target.checked; drawList(); };
   app.querySelector("#fgrp").onchange = e => { F.inGroup = e.target.checked; drawList(); };
   app.querySelector("#fnote").onchange = e => { F.noted = e.target.checked; drawList(); };
   app.querySelector("#fage1").onchange = e => { F.ageMin = e.target.value; drawList(); };
@@ -1125,7 +1167,8 @@ async function viewMigrate(param) {
       return `<section class="cand">
         <div class="candhead"><a href="./#/state/${k}" class="num" target="_blank" rel="noopener">#${k}</a>${star(k)}</div>
         <div class="candstats">
-          <span>日本語名 <b>${s.jp != null ? s.jp + "%" : "–"}</b></span><span>${balanceLabel(s.dom)}</span>
+          <span>日本語名 <b>${s.jp != null ? s.jp + "%" : "–"}</b></span><span>最大同盟の占有 <b>${s.top1 != null ? s.top1 + "%" : "–"}</b></span>
+          <span>大同盟 <b>${s.big ?? "–"}</b></span><span>SvS <b>${s.svsN ? `${s.svsW}勝${s.svsN - s.svsW}敗` : "記録なし"}</b></span><span>${balanceLabel(s.dom)}</span>
           <span>総戦力 <b>${jp(s._power)}</b></span><span>開設 <b>${s.age_days != null ? int(s.age_days) + "日" : "–"}</b></span>
         </div>
         <div class="notes">${notesFor(k, migr).map(n => `<a class="notebtn" href="${esc(n.url)}" target="_blank" rel="noopener noreferrer">📝 ${esc(n.label || noteLabel(n.url))}</a>`).join("")}

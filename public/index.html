@@ -171,6 +171,35 @@
   .pkr .ck { color: var(--ember); font-weight: 700; text-align: center; }
   input.hn-in { font: inherit; font-size: 16px; padding: 4px 8px; border: 1px solid var(--rime); border-radius: 4px; background: var(--surface); color: var(--ink); width: 10em; }
   code { font-size: 12px; background: var(--bg); padding: 1px 4px; border-radius: 3px; }
+  .people { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+  .person { background: var(--surface); border: 1px solid var(--rime); border-radius: 8px; padding: 10px 12px; display: grid; gap: 6px; }
+  .person b { font-size: 15px; margin-right: 6px; }
+  .person label, .filters label { display: grid; grid-template-columns: 6.5em 1fr; align-items: center; gap: 8px; font-size: 13px; color: var(--steel); }
+  .person input, .filters input[type=text] { font: inherit; font-size: 16px; padding: 5px 8px; border: 1px solid var(--rime); border-radius: 5px; background: var(--bg); color: var(--ink); min-width: 0; }
+  .person input[readonly] { border-style: dashed; }
+  .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px 20px; background: var(--surface); border: 1px solid var(--rime); border-radius: 8px; padding: 12px; margin-bottom: 8px; }
+  .filters label { grid-template-columns: 1fr; gap: 4px; }
+  .filters input[type=range] { width: 100%; accent-color: var(--ember); }
+  .filters .rng { display: flex; gap: 6px; align-items: center; }
+  .filters .rng input { width: 6em; }
+  .star { font: inherit; font-size: 20px; line-height: 1; border: 0; background: none; color: var(--steel); cursor: pointer; padding: 2px 4px; }
+  .star.on { color: var(--ember); }
+  .candgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+  .cand { background: var(--surface); border: 1px solid var(--rime); border-radius: 8px; padding: 10px 12px; }
+  .candhead { display: flex; justify-content: space-between; align-items: center; }
+  .candhead a { font-size: 24px; font-weight: 700; }
+  .candstats { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--steel); margin: 4px 0 8px; }
+  .candstats b { color: var(--ink); }
+  table.mini { font-size: 13px; margin-bottom: 8px; }
+  table.mini th, table.mini td { padding: 5px 6px; }
+  .tgbox { background: var(--surface); border: 1px solid var(--rime); border-radius: 8px; padding: 12px 14px; margin: 0 0 8px; display: grid; gap: 8px; font-size: 14px; }
+  .tgbox.live { border-color: var(--ember); }
+  .tggrp b { color: var(--ember); }
+  ol.phases { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+  ol.phases li { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; padding: 6px 8px; border-radius: 6px; background: var(--bg); font-size: 13px; }
+  ol.phases li.done { opacity: .55; }
+  ol.phases li.cur { outline: 1px solid var(--ember); }
+  ol.phases li span { color: var(--steel); }
   label.check { font-size: 14px; display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
   .jp { display: inline-block; min-width: 3.2em; text-align: right; }
   .jp.hi { color: var(--ember); font-weight: 700; }
@@ -238,14 +267,14 @@
 <header class="site">
   <div class="in">
     <a class="brand" href="#/">🧊 WoS 王国データ</a>
-    <nav class="topnav"><a href="#/" data-tab="list">王国一覧</a><a href="#/compare" data-tab="compare">地底探検比較</a><a href="#/" data-tab="mine" class="mine" hidden>マイ同盟</a></nav>
+    <nav class="topnav"><a href="#/" data-tab="list">王国一覧</a><a href="#/compare" data-tab="compare">王国比較</a><a href="#/" data-tab="mine" class="mine" hidden>マイ同盟</a></nav>
     <span class="updated" id="updated"></span>
   </div>
 </header>
 <main id="app"><p class="sub">読み込み中…</p></main>
 <nav class="tabbar" aria-label="メインメニュー">
   <a href="#/" data-tab="list"><span aria-hidden="true">🧊</span>王国一覧</a>
-  <a href="#/compare" data-tab="compare"><span aria-hidden="true">⛏️</span>地底探検比較</a>
+  <a href="#/compare" data-tab="compare"><span aria-hidden="true">⛏️</span>王国比較</a>
   <a href="#/" data-tab="mine" class="mine" hidden><span aria-hidden="true">🔥</span>マイ同盟</a>
 </nav>
 <footer>
@@ -253,6 +282,8 @@
 </footer>
 
 <script>
+// "main"＝通常のサイト。"migrate"＝移民検討専用ページ（デプロイ時に migrate.html として自動生成）
+const MODE = "main";
 const app = document.getElementById("app");
 const cache = new Map();
 
@@ -807,17 +838,199 @@ async function viewHeroNames() {
   };
 }
 
+// ---------- 移民検討 ----------
+// 「6.2億」「6200万」「620000000」のどれでも数値にする
+function parseJp(v) {
+  const t = String(v ?? "").replace(/[,\s]/g, "");
+  if (!t) return null;
+  const m = t.match(/^([\d.]+)(億|万)?$/);
+  if (!m) return null;
+  return Math.round(Number(m[1]) * (m[2] === "億" ? 1e8 : m[2] === "万" ? 1e4 : 1));
+}
+// 上位100人のランキングに数値を差し込んだときの順位
+function predictRank(rows, v) {
+  if (!v || !rows?.length) return null;
+  const higher = rows.filter(r => (Number(r.score) || 0) > v).length;
+  if (higher >= 100) return "圏外";
+  return higher + 1;
+}
+const MIG_KEY = "wos-migrate-people";
+function loadPeople(fromData) {
+  let saved = [];
+  try { saved = JSON.parse(localStorage.getItem(MIG_KEY) || "[]"); } catch {}
+  const base = (fromData?.people || []).map(p => ({ name: p.name, power: p.power, transfer: p.state_transfer_score, lab: p.labyrinth, auto: true }));
+  const list = base.length ? base : [{ name: "たちばな" }, { name: "ふぁーちゃん" }];
+  return list.map((p, i) => ({ ...p, ...(p.auto ? {} : saved[i] || {}) }));
+}
+const balanceLabel = d => d == null ? "–" : d >= 40 ? `一強（${d}%）` : d >= 25 ? `やや一強（${d}%）` : `拮抗（${d}%）`;
+
+async function viewMigrate(param) {
+  const cands = [...new Set((param || "").split(",").filter(x => /^\d+$/.test(x)))];
+  const [list, lang, meta, tg] = await Promise.all([load("states.json"), load("lang.json"), load("meta.json"), getJSON("transfer-groups.json")]);
+  const migr = null; // 個人の情報はサーバーに置かない（端末にだけ保存）
+  if (!list) { app.innerHTML = `<p class="note">データがまだありません。</p>`; return; }
+  const L = lang?.states || {};
+  const people = loadPeople(migr);
+  const home = list.states.find(s => String(s.kid) === String(meta?.watch_states?.[0]));
+  // 移民グループ（公式発表）：自王国と同じグループの王国にしか移民できない
+  const group = (tg?.groups || []).find(([a, b]) => home && home.kid >= a && home.kid <= b) || null;
+  const F = viewMigrate.F || (viewMigrate.F = {
+    jp: 70, jpa: 50, ageMin: "", ageMax: "", active: 0, inGroup: !!group,
+  });
+  const setCands = c => { location.hash = "#/" + c.join(","); };
+  let details = [];
+  const rows = list.states.map(s => {
+    const x = L[s.kid] || {};
+    const act = s.player_count ? Math.round((Number(s.active_7d) || 0) / s.player_count * 100) : null;
+    return { ...s, jp: x.jp ?? null, jpa: x.jpa ?? null, dom: x.dom ?? null, act, _power: totalPower(s) };
+  });
+
+  app.innerHTML = `
+    <h1>移民検討</h1>
+    <p class="sub">日本人が多く雰囲気の良い王国を探すためのページです。☆で候補リストに入れた王国はURLに入るので、そのリンクを送り合えば同じ候補を見られます。このページはどこからもリンクしていません。</p>
+    <section id="tg"></section>
+    <h2>2人の現在地</h2>
+    <div class="people">${people.map((p, i) => `<div class="person">
+      <b>${esc(p.name)}</b>${p.auto ? `<span class="tag">自動更新</span>` : ""}
+      <label>戦力<input type="text" inputmode="decimal" name="mig_power_${i}" ${SEARCH_ATTRS} data-i="${i}" data-k="power" value="${p.power ? jp(p.power) : ""}" placeholder="例：6.2億" ${p.auto ? "readonly" : ""}></label>
+      <label>移民スコア<input type="text" inputmode="decimal" name="mig_transfer_${i}" ${SEARCH_ATTRS} data-i="${i}" data-k="transfer" value="${p.transfer ? jp(p.transfer) : ""}" placeholder="例：250万" ${p.auto ? "readonly" : ""}></label>
+      <label>地底探検<input type="text" inputmode="numeric" name="mig_lab_${i}" ${SEARCH_ATTRS} data-i="${i}" data-k="lab" value="${p.lab ?? ""}" placeholder="例：1500" ${p.auto ? "readonly" : ""}></label>
+    </div>`).join("")}</div>
+    <p class="dim">入力した数値はこの端末（ブラウザ）にだけ保存され、サイトやGitHubには送られません。ゲーム内のプロフィールで確認して入力してください。</p>
+
+    <h2>候補リスト${cands.length ? `（${cands.length}）` : ""}</h2>
+    <div id="cands">${cands.length ? "" : `<p class="note">下の一覧で☆を押すと、ここに候補が並びます。</p>`}</div>
+
+    <h2>王国を探す</h2>
+    <div class="filters">
+      <label><span>日本語名 <b id="fjpv">${F.jp}</b>%以上</span><input type="range" id="fjp" min="0" max="100" step="5" value="${F.jp}"></label>
+      <label><span>日本語の同盟 <b id="fjpav">${F.jpa}</b>%以上</span><input type="range" id="fjpa" min="0" max="100" step="5" value="${F.jpa}"></label>
+      <label><span>アクティブ率 <b id="factv">${F.active}</b>%以上</span><input type="range" id="fact" min="0" max="100" step="5" value="${F.active}"></label>
+      <label class="check" style="align-self:end"><input type="checkbox" id="fgrp" ${F.inGroup ? "checked" : ""} ${group ? "" : "disabled"}> 移民グループ内（${group ? `${group[0]}〜${group[1]}` : "情報なし"}）だけ</label>
+      <label><span>開設からの日数</span><span class="rng"><input type="text" inputmode="numeric" id="fage1" name="age_min_search" ${SEARCH_ATTRS} value="${F.ageMin}" placeholder="下限">〜<input type="text" inputmode="numeric" id="fage2" name="age_max_search" ${SEARCH_ATTRS} value="${F.ageMax}" placeholder="上限"></span></label>
+    </div>
+    <p class="dim">日本語名・日本語の同盟・勢力バランスは、詳細を取得済みの王国だけ表示されます（全王国は約1日で一巡）。</p>
+    <div id="mlist"></div>`;
+
+  // 今回の移民イベントと移民範囲
+  const tgBox = app.querySelector("#tg");
+  if (tg?.event) {
+    const now = Date.now(), fmt = d => new Date(d).toLocaleString("ja-JP", { month: "numeric", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit" });
+    const end = Date.parse(tg.event.end), start = Date.parse(tg.event.start);
+    const state = now < start ? "これから" : now <= end ? "開催中" : "終了";
+    const left = ms => { const h = Math.floor(ms / 3600000); return h >= 24 ? `あと${Math.floor(h / 24)}日${h % 24}時間` : `あと${h}時間`; };
+    const inGroupCount = group ? rows.filter(r => r.kid >= group[0] && r.kid <= group[1]).length : 0;
+    tgBox.innerHTML = `<div class="tgbox ${state === "開催中" ? "live" : ""}">
+      <div><b>移民イベント ${state}</b>　${fmt(tg.event.start)} 〜 ${fmt(tg.event.end)}（日本時間）${state === "開催中" ? `　<span class="tag">終了まで${left(end - now)}</span>` : ""}</div>
+      ${group ? `<div class="tggrp">自王国 #${home.kid} は <b>グループ ${tg.groups.indexOf(group) + 1}（王国 ${group[0]}〜${group[1]}）</b>。移民できるのはこの範囲の王国だけです（データのある王国 ${inGroupCount}）。</div>` : `<div class="tggrp">自王国の移民グループが今回の発表に含まれていません。</div>`}
+      <ol class="phases">${(tg.event.phases || []).map(p => { const a = Date.parse(p.start), b = Date.parse(p.end); const cur = now >= a && now <= b;
+        return `<li class="${cur ? "cur" : now > b ? "done" : ""}"><b>${esc(p.name)}</b><span>${fmt(p.start)} 〜 ${fmt(p.end)}</span>${cur ? `<span class="tag">いまここ・${left(b - now)}</span>` : ""}</li>`; }).join("")}</ol>
+      <p class="dim">出典：Century Games 公式サイトの告知（11月6日）。各段階の日付は過去の公式告知の日数（準備3日・招待2日・自由移民2日）に当てはめた目安です。移民の条件として、前回の移民から25日以上たっていること、移民先にキャラクターが4つ未満であること、大統領でないことなどがあります。正確なルールはゲーム内のイベント画面で確認してください。</p>
+    </div>`;
+  }
+
+  // 2人の数値（手入力時）を保存
+  app.querySelectorAll(".person input:not([readonly])").forEach(inp => inp.onchange = () => {
+    const i = Number(inp.dataset.i), k = inp.dataset.k;
+    const v = k === "lab" ? Number(inp.value) || null : parseJp(inp.value);
+    people[i] = { ...people[i], [k]: v };
+    try { localStorage.setItem(MIG_KEY, JSON.stringify(people.map(p => ({ name: p.name, power: p.power, transfer: p.transfer, lab: p.lab })))); } catch {}
+    drawCands();
+  });
+
+  // 一覧
+  const listBox = app.querySelector("#mlist");
+  const star = k => `<button type="button" class="star${cands.includes(String(k)) ? " on" : ""}" data-k="${k}" aria-label="候補に${cands.includes(String(k)) ? "入っています" : "入れる"}">${cands.includes(String(k)) ? "★" : "☆"}</button>`;
+  const drawList = () => {
+    const a1 = Number(F.ageMin) || 0, a2 = Number(F.ageMax) || Infinity;
+    const table = sortableTable({
+      rows, initialSort: { key: "jp", dir: "desc" }, pageSize: 50,
+      filter: () => r => (r.jp ?? -1) >= F.jp && (F.jpa ? (r.jpa ?? -1) >= F.jpa : true) && (F.active ? (r.act ?? -1) >= F.active : true)
+        && (r.age_days == null || (r.age_days >= a1 && r.age_days <= a2)) && String(r.kid) !== String(home?.kid)
+        && (!F.inGroup || !group || (r.kid >= group[0] && r.kid <= group[1])),
+      columns: [
+        { key: "_star", label: "", sort: false, cell: r => star(r.kid) },
+        { key: "kid", label: "王国", cell: r => `<a href="./#/state/${r.kid}" target="_blank" rel="noopener"><span class="num">#${r.kid}</span></a>` },
+        { key: "jp", label: "日本語名", r: true, cell: r => jpBadge(r.jp) },
+        { key: "jpa", label: "日本語の同盟", r: true, hs: true, cell: r => r.jpa != null ? `<span class="num">${r.jpa}%</span>` : "–" },
+        { key: "act", label: "アクティブ", r: true, cell: r => r.act != null ? `<span class="num">${r.act}%</span>` : "–" },
+        { key: "dom", label: "勢力バランス", hs: true, cell: r => balanceLabel(r.dom) },
+        { key: "_power", label: "総戦力", r: true, cell: r => `<span class="num">${jp(r._power)}</span>` },
+        { key: "state_transfer_score", label: "移民スコア", r: true, hs: true, cell: r => `<span class="num">${jp(r.state_transfer_score)}</span>` },
+        { key: "age_days", label: "開設", r: true, hs: true, cell: r => r.age_days != null ? `<span class="num">${int(r.age_days)}</span>日` : "–" },
+      ],
+    });
+    listBox.innerHTML = ""; listBox.append(table);
+    listBox.onclick = e => { const b = e.target.closest(".star"); if (!b) return; const k = b.dataset.k; setCands(cands.includes(k) ? cands.filter(x => x !== k) : [...cands, k]); };
+  };
+  const bindRange = (id, key) => { const el = app.querySelector("#" + id); el.oninput = () => { F[key] = Number(el.value); app.querySelector(`#${id}v`).textContent = el.value; drawList(); }; };
+  bindRange("fjp", "jp"); bindRange("fjpa", "jpa"); bindRange("fact", "active");
+  app.querySelector("#fgrp").onchange = e => { F.inGroup = e.target.checked; drawList(); };
+  app.querySelector("#fage1").onchange = e => { F.ageMin = e.target.value; drawList(); };
+  app.querySelector("#fage2").onchange = e => { F.ageMax = e.target.value; drawList(); };
+  drawList();
+
+  // 候補リスト（詳細を読み込んで、2人が入った場合の順位などを表示）
+  const candBox = app.querySelector("#cands");
+  details = await Promise.all(cands.map(k => load(`states/${k}.json`)));
+  function drawCands() {
+    if (!cands.length) return;
+    candBox.innerHTML = `<div class="candgrid">${cands.map((k, i) => {
+      const d = details[i], s = rows.find(r => String(r.kid) === k) || {};
+      const st = d?.state || {};
+      const transferTotal = Number(st.state_transfer_score || s.state_transfer_score) || 0;
+      const pp = boardRows(d?.boards, "personal_power"), tr = boardRows(d?.boards, "state_transfer"), lab = boardRows(d?.boards, "labyrinth");
+      const al = boardRows(d?.boards, "alliance_power").slice(0, 5);
+      const kana = /[\u3041-\u309F\u30A1-\u30FF\uFF66-\uFF9F]/;
+      const rk = v => v == null ? "–" : v === "圏外" ? "圏外" : `${v}位`;
+      return `<section class="cand">
+        <div class="candhead"><a href="./#/state/${k}" class="num" target="_blank" rel="noopener">#${k}</a>${star(k)}</div>
+        <div class="candstats">
+          <span>日本語名 <b>${s.jp != null ? s.jp + "%" : "–"}</b></span><span>日本語の同盟 <b>${s.jpa != null ? s.jpa + "%" : "–"}</b></span>
+          <span>アクティブ <b>${s.act != null ? s.act + "%" : "–"}</b></span><span>${balanceLabel(s.dom)}</span>
+          <span>総戦力 <b>${jp(s._power)}</b></span><span>開設 <b>${s.age_days != null ? int(s.age_days) + "日" : "–"}</b></span>
+        </div>
+        ${!d ? `<p class="note">この王国の詳細はまだ取得されていません。順次取得されます。</p>` : `
+        <table class="mini"><thead><tr><th>移民したら</th><th class="r">戦力</th><th class="r">移民スコア</th><th class="r">地底探検</th><th class="r hs">スコア比</th></tr></thead><tbody>
+          ${people.map(p => `<tr><td>${esc(p.name)}</td><td class="r">${rk(predictRank(pp, p.power))}</td><td class="r">${rk(predictRank(tr, p.transfer))}</td><td class="r">${rk(predictRank(lab, p.lab))}</td>
+            <td class="r hs">${p.transfer && transferTotal ? (p.transfer / transferTotal * 100).toFixed(2) + "%" : "–"}</td></tr>`).join("")}
+        </tbody></table>
+        <div class="dim">上位同盟</div>
+        <ol class="top10">${al.map((r, j) => `<li><span class="rk num">${j + 1}</span><span class="nm">[${esc(r.abbr)}] ${esc(r.name)}${kana.test(`${r.name}${r.abbr}`) ? "" : ` <span class="dim">（英字）</span>`}</span><span class="sc num">${jp(r.score)}<span class="dim">・${r.member_count ?? "–"}人</span></span></li>`).join("")}</ol>`}
+      </section>`;
+    }).join("")}</div>
+    <p class="dim">「移民したら」は、2人の数値をその王国の上位100人のランキングに入れたときの順位です。スコア比は、自分の移民スコア÷王国の移民スコア（上位100人の合計）で、公式の説明では高いほど必要な移民パスが増えます。正確なパス数とリーディング王国かどうかは、移民イベントの画面でしか確定しません。</p>
+    <p><a href="./#/compare/${[meta?.watch_states?.[0], ...cands].filter(Boolean).join(",")}" target="_blank" rel="noopener">候補を地底探検・英雄で比較する（通常のサイトで開きます）→</a></p>`;
+    candBox.onclick = e => { const b = e.target.closest(".star"); if (!b) return; setCands(cands.filter(x => x !== b.dataset.k)); };
+  }
+  drawCands();
+  viewMigrate.drawn = true;
+}
+
 // ---------- ルーティング ----------
 async function route() {
   const parts = location.hash.replace(/^#\/?/, "").split("/").map(decodeURIComponent);
+  if (MODE === "migrate") { // 移民検討ページ：ほかの画面には行かない
+    if (!viewMigrate.drawn) window.scrollTo(0, 0);
+    await viewMigrate(parts[0] === "migrate" ? parts[1] : parts[0]);
+    document.title = "移民検討";
+    return;
+  }
   window.scrollTo(0, 0);
   if (parts[0] === "state" && parts[1]) await viewState(parts[1]);
   else if (parts[0] === "alliance" && parts[1] && parts[2]) await viewAlliance(parts[1], parts[2]);
   else if (parts[0] === "compare") await viewCompare(parts[1], parts[2]);
   else if (parts[0] === "heroes") await viewHeroNames();
   else await viewStates();
-  const t = { state: `王国 #${parts[1]}`, alliance: `[${parts[2]}] 王国 #${parts[1]}`, compare: "王国比較", heroes: "英雄名の設定" }[parts[0]];
+  const t = { state: `王国 #${parts[1]}`, alliance: `[${parts[2]}] 王国 #${parts[1]}`, compare: "王国比較", heroes: "英雄名の設定", migrate: "移民検討" }[parts[0]];
   document.title = (t ? t + " | " : "") + "WoS 王国データ";
+}
+if (MODE === "migrate") {
+  document.querySelector("header.site .brand").textContent = "🧭 移民検討";
+  document.querySelector("header.site .brand").removeAttribute("href");
+  document.querySelector("nav.topnav")?.remove();
+  document.querySelector("nav.tabbar")?.remove();
+  document.body.classList.add("mode-migrate");
 }
 load("meta.json").then(m => {
   if (m?.updated_at) document.getElementById("updated").textContent = "最終更新 " + ago(m.updated_at);
@@ -826,7 +1039,7 @@ load("meta.json").then(m => {
 });
 function markTab() {
   const h = location.hash;
-  const tab = h.startsWith("#/compare") ? "compare" : h.startsWith("#/alliance") ? "mine" : (h === "" || h === "#/" || h.startsWith("#/state")) ? "list" : "";
+  const tab = h.startsWith("#/compare") ? "compare" : h.startsWith("#/migrate") ? "migrate" : h.startsWith("#/alliance") ? "mine" : (h === "" || h === "#/" || h.startsWith("#/state")) ? "list" : "";
   document.querySelectorAll("[data-tab]").forEach(el => el.setAttribute("aria-current", el.dataset.tab === tab ? "page" : "false"));
 }
 addEventListener("hashchange", markTab); markTab();

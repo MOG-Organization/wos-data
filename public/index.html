@@ -451,6 +451,7 @@ async function viewStates() {
     <h2>すべての王国</h2><div class="tools"><span class="rng mainrng"><input type="text" inputmode="numeric" id="qk1" name="kid_min_search" autocomplete="off" placeholder="番号の下限">〜<input type="text" inputmode="numeric" id="qk2" name="kid_max_search" autocomplete="off" placeholder="上限"></span><input type="search" id="q" name="kingdom_search" placeholder="王国を検索（例：3345）" inputmode="numeric" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" aria-label="王国を検索">
       <label class="check"><input type="checkbox" id="jponly"> 日本人が多い王国だけ（日本語名 ${JP_TH}%以上）</label></div>
     <p class="dim">日本語名＝戦力上位100人のうち、名前にひらがな・カタカナを含む人の割合。ローマ字名は数えないため目安です。未取得の王国は「–」で、順次埋まります。</p>
+    <div class="copybar"><button type="button" class="more" id="copyKids" style="margin:0">📋 結果の王国番号をコピー</button><span class="dim" id="copyMsg2"></span></div>
     <div id="list"></div>`;
   const q = app.querySelector("#q"), jpOnly = app.querySelector("#jponly");
   const table = sortableTable({
@@ -469,10 +470,21 @@ async function viewStates() {
       { key: "age_days", label: "開設から", r: true, hs: true, cell: r => r.age_days != null ? `<span class="num">${int(r.age_days)}</span>日` : "–" },
     ],
   });
-  q.oninput = () => table.rerender();
-  jpOnly.onchange = () => table.rerender();
-  app.querySelector("#qk1").oninput = () => table.rerender();
-  app.querySelector("#qk2").oninput = () => table.rerender();
+  q.oninput = () => { table.rerender(); updCopy?.(); };
+  jpOnly.onchange = () => { table.rerender(); updCopy?.(); };
+  app.querySelector("#qk1").oninput = () => { table.rerender(); updCopy(); };
+  app.querySelector("#qk2").oninput = () => { table.rerender(); updCopy(); };
+  // 絞り込み結果の王国番号をコピー（ページ送りで見えていない分も含む）
+  const hitsNow = () => { const v = q.value.trim(), j = jpOnly.checked, a = Number(app.querySelector("#qk1").value) || 0, b = Number(app.querySelector("#qk2").value) || Infinity;
+    return data.states.filter(r => (!v || String(r.kid).startsWith(v)) && (!j || (r.jp ?? -1) >= JP_TH) && r.kid >= a && r.kid <= b).map(r => r.kid).sort((x, y) => x - y); };
+  const copyBtn = app.querySelector("#copyKids"), copyMsg = app.querySelector("#copyMsg2");
+  const updCopy = () => { copyBtn.textContent = `📋 結果の王国番号をコピー（${hitsNow().length}件）`; copyMsg.textContent = ""; };
+  copyBtn.onclick = async () => {
+    const text = hitsNow().join(", ");
+    try { await navigator.clipboard.writeText(text); copyMsg.textContent = "コピーしました"; }
+    catch { copyMsg.innerHTML = `<textarea readonly rows="2" style="width:100%;font-size:12px">${esc(text)}</textarea>`; copyMsg.querySelector("textarea").select(); }
+  };
+  updCopy();
   q.onkeydown = e => { if (e.key === "Enter" && /^\d+$/.test(q.value.trim())) location.hash = `#/state/${q.value.trim()}`; };
   app.querySelector("#list").append(table);
 }
@@ -1232,16 +1244,7 @@ async function viewMigrate(param) {
       ],
     });
     listBox.innerHTML = "";
-    // 絞り込み結果の王国番号をコピー
-    const hits = rows.filter(pass).map(r => r.kid).sort((a, b) => a - b);
-    const cp = document.createElement("div"); cp.className = "copybar";
-    cp.innerHTML = `<button type="button" class="more" style="margin:0">📋 結果の王国番号をコピー（${hits.length}件）</button><span class="dim"></span>`;
-    cp.querySelector("button").onclick = async () => {
-      const text = hits.join(", "), msg = cp.querySelector(".dim");
-      try { await navigator.clipboard.writeText(text); msg.textContent = "コピーしました"; }
-      catch { msg.innerHTML = `<textarea readonly rows="2" style="width:100%;font-size:12px">${esc(text)}</textarea>`; msg.querySelector("textarea").select(); }
-    };
-    listBox.append(cp);
+
     if (group) {
       const inR = rows.filter(r => r.kid >= group[0] && r.kid <= group[1]);
       const noD = inR.filter(r => r.jp == null).length;

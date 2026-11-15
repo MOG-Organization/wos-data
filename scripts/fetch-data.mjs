@@ -72,6 +72,7 @@ const STATE_FIELDS = [
   "kid", "name", "player_count", "located", "active_7d", "alliance_count", "age_days", "opened_on",
   "power", "avg_power", "power_rank", "activity_rank", "health", "power_gain_7d", "state_transfer_score",
   "gov_power", "alliance_power", "labyrinth", "banner_url", "active_players", "active_30d",
+  "pet_power", "island_prosperity", "master_power",
 ];
 const pick = (o, fields) => Object.fromEntries(fields.filter((f) => o?.[f] !== undefined).map((f) => [f, o[f]]));
 
@@ -191,7 +192,8 @@ try {
     // 戦力のライン（10位・30位・100位）と、移民スコアの100位ライン：メンバーが何位に入れるかの判定用
     const line = (rows, n) => (rows.length >= n ? Number(rows[n - 1].score) || null : null);
     const ln = { p10: line(pp, 10), p30: line(pp, 30), p100: line(pp, 100), t100: line(boardRows(boards, "state_transfer"), 100) };
-    if (jp || state.banner_url || dom != null) lang.states[kid] = { ...(jp || {}), dom, top1, big, ...ln, banner: state.banner_url ?? null, at: now.slice(0, 10) };
+    const extra = { pet: state.pet_power ?? null, isl: state.island_prosperity ?? null, mst: state.master_power ?? null };
+    if (jp || state.banner_url || dom != null) lang.states[kid] = { ...(jp || {}), dom, top1, big, ...ln, ...extra, banner: state.banner_url ?? null, at: now.slice(0, 10) };
     detailDone++;
     return boards;
   }

@@ -197,6 +197,9 @@
   .tgbox { background: var(--surface); border: 1px solid var(--rime); border-radius: 8px; padding: 12px 14px; margin: 0 0 8px; display: grid; gap: 8px; font-size: 14px; }
   .tgbox.live { border-color: var(--ember); }
   .tggrp b { color: var(--ember); }
+  .copybar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 4px 0 8px; }
+  .mainrng { display: inline-flex; gap: 6px; align-items: center; }
+  .mainrng input { font: inherit; font-size: 16px; width: 7em; padding: 8px 10px; border: 1px solid var(--rime); border-radius: 6px; background: var(--surface); color: var(--ink); }
   .rangesum { font-size: 13px; color: var(--steel); margin: 0 0 4px; } .rangesum b { color: var(--ember); }
   .score { font-family: "Saira Condensed", "Arial Narrow", sans-serif; font-weight: 700; font-size: 17px; }
   .score.hi { color: var(--ember); } .score.mid { color: var(--ink); } .score.lo { color: var(--steel); }
@@ -445,7 +448,7 @@ async function viewStates() {
     <h1>王国一覧</h1>
     <p class="sub">全${int(data.states.length)}王国。見出しを押すと並べ替えできます。</p>
     ${watched.length ? `<h2>同盟ページがある同盟</h2><div class="chips scrollx">${watched.map(a => `<a href="#/alliance/${a.kid}/${encodeURIComponent(a.tag)}">[${esc(a.tag)}] ${esc(a.name)}<span class="dim"> #${a.kid}</span></a>`).join("")}</div>` : ""}
-    <h2>すべての王国</h2><div class="tools"><input type="search" id="q" name="kingdom_search" placeholder="王国を検索（例：3345）" inputmode="numeric" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" aria-label="王国を検索">
+    <h2>すべての王国</h2><div class="tools"><span class="rng mainrng"><input type="text" inputmode="numeric" id="qk1" name="kid_min_search" autocomplete="off" placeholder="番号の下限">〜<input type="text" inputmode="numeric" id="qk2" name="kid_max_search" autocomplete="off" placeholder="上限"></span><input type="search" id="q" name="kingdom_search" placeholder="王国を検索（例：3345）" inputmode="numeric" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" aria-label="王国を検索">
       <label class="check"><input type="checkbox" id="jponly"> 日本人が多い王国だけ（日本語名 ${JP_TH}%以上）</label></div>
     <p class="dim">日本語名＝戦力上位100人のうち、名前にひらがな・カタカナを含む人の割合。ローマ字名は数えないため目安です。未取得の王国は「–」で、順次埋まります。</p>
     <div id="list"></div>`;
@@ -453,7 +456,8 @@ async function viewStates() {
   const table = sortableTable({
     rows: data.states,
     initialSort: { key: "_power", dir: "desc" },
-    filter: () => { const v = q.value.trim(), j = jpOnly.checked; return r => (!v || String(r.kid).startsWith(v)) && (!j || (r.jp ?? -1) >= JP_TH); },
+    filter: () => { const v = q.value.trim(), j = jpOnly.checked, a = Number(app.querySelector("#qk1").value) || 0, b = Number(app.querySelector("#qk2").value) || Infinity;
+      return r => (!v || String(r.kid).startsWith(v)) && (!j || (r.jp ?? -1) >= JP_TH) && r.kid >= a && r.kid <= b; },
     columns: [
       { key: "kid", label: "王国", cell: r => `<a href="#/state/${r.kid}"><span class="num">#${r.kid}</span></a>` },
       { key: "_power", label: "総戦力", r: false, heat: true, cell: (r, i, m) => heat(r._power, m) },
@@ -467,6 +471,8 @@ async function viewStates() {
   });
   q.oninput = () => table.rerender();
   jpOnly.onchange = () => table.rerender();
+  app.querySelector("#qk1").oninput = () => table.rerender();
+  app.querySelector("#qk2").oninput = () => table.rerender();
   q.onkeydown = e => { if (e.key === "Enter" && /^\d+$/.test(q.value.trim())) location.hash = `#/state/${q.value.trim()}`; };
   app.querySelector("#list").append(table);
 }
@@ -487,6 +493,7 @@ async function viewState(kid) {
       ${stat("総戦力", jp(totalPower(s)))}${stat("平均戦力", Number(s.avg_power) ? jp(s.avg_power) : "–")}${stat("戦力順位", s.power_rank ? int(s.power_rank) + "位" : "–")}
       ${stat("人数", int(s.player_count))}${stat("同盟数", int(s.alliance_count))}${stat("7日の戦力増", Number(s.power_gain_7d) ? jp(s.power_gain_7d) : "–")}
       ${stat("地底探検（合計）", s.labyrinth ? int(s.labyrinth) : "–")}
+      ${stat("ペット総力", jp(s.pet_power))}${stat("島の繁栄度", jp(s.island_prosperity))}${stat("専門家総力", jp(s.master_power))}
       ${stat("日本語名（上位" + (jpStat?.n ?? 100) + "人）", jpStat ? jpStat.jp + "%" : "–")}
     </dl>
     <section id="svs"></section>
@@ -1059,7 +1066,8 @@ async function viewMigrate(param) {
     const sv = svsSum?.[s.kid];
     return { ...s, jp: x.jp ?? null, dom: x.dom ?? null, top1: x.top1 ?? null, big: x.big ?? null,
       p10: x.p10 ?? null, p30: x.p30 ?? null, p100: x.p100 ?? null, t100: x.t100 ?? null,
-      svsN: sv?.n || 0, svsW: sv?.w || 0, svsRate: sv?.n ? Math.round(sv.w / sv.n * 100) : null, _power: totalPower(s) };
+      svsN: sv?.n || 0, svsW: sv?.w || 0, svsRate: sv?.n ? Math.round(sv.w / sv.n * 100) : null, _power: totalPower(s),
+      pet: s.pet_power ?? x.pet ?? null, isl: s.island_prosperity ?? x.isl ?? null, mst: s.master_power ?? x.mst ?? null };
   });
 
   app.innerHTML = `
@@ -1102,6 +1110,7 @@ async function viewMigrate(param) {
       <label class="check" style="align-self:end"><input type="checkbox" id="fnote" ${F.noted ? "checked" : ""}> 📝 メモがある王国だけ</label>
       <label class="check" style="align-self:end"><input type="checkbox" id="fout" ${F.showOut ? "checked" : ""}> 「除外」にした王国も表示</label>
       <label class="check" style="align-self:end"><input type="checkbox" id="fnodata" ${F.noData ? "checked" : ""}> 詳細データが未取得の王国も表示</label>
+      <label><span>王国番号の範囲</span><span class="rng"><input type="text" inputmode="numeric" id="fk1" name="kid_min_search" ${SEARCH_ATTRS} value="${F.kMin ?? ""}" placeholder="下限">〜<input type="text" inputmode="numeric" id="fk2" name="kid_max_search" ${SEARCH_ATTRS} value="${F.kMax ?? ""}" placeholder="上限"></span></label>
       <label><span>開設からの日数</span><span class="rng"><input type="text" inputmode="numeric" id="fage1" name="age_min_search" ${SEARCH_ATTRS} value="${F.ageMin}" placeholder="下限">〜<input type="text" inputmode="numeric" id="fage2" name="age_max_search" ${SEARCH_ATTRS} value="${F.ageMax}" placeholder="上限"></span></label>
     </div>
     <p class="dim"><b>型ができていない王国の目安</b>：「最大の同盟の占有率」が低い（上位100人が1つの同盟に集まっていない）、「大同盟」が少ない、SvSの勝率が低い、など。メンバーが上位に入れるほど、作戦や指揮に関わりやすくなります。<br>
@@ -1191,16 +1200,19 @@ async function viewMigrate(param) {
   const star = k => `<button type="button" class="star${cands.includes(String(k)) ? " on" : ""}" data-k="${k}" aria-label="候補に${cands.includes(String(k)) ? "入っています" : "入れる"}">${cands.includes(String(k)) ? "★" : "☆"}</button>`;
   const drawList = () => {
     const a1 = Number(F.ageMin) || 0, a2 = Number(F.ageMax) || Infinity;
-    const table = sortableTable({
-      rows, initialSort: { key: "kid", dir: "asc" }, pageSize: 50,
-      filter: () => r => (r.jp == null ? F.noData : r.jp >= F.jp)
+    const k1 = Number(F.kMin) || 0, k2 = Number(F.kMax) || Infinity;
+    const pass = r => (r.jp == null ? F.noData : r.jp >= F.jp)
+        && r.kid >= k1 && r.kid <= k2
         && (F.top1 >= 100 || (r.top1 == null ? F.noData : r.top1 <= F.top1))
         && (!F.band || people.every(p => { const b = powerBand(p.power, r); return b == null ? F.noData : b <= F.band; }))
         && (r.svsN ? r.svsRate <= F.svsMax : F.svsAll)
         && (r.age_days == null || (r.age_days >= a1 && r.age_days <= a2)) && !kidsForGroup.map(String).includes(String(r.kid))
         && (!F.inGroup || !group || (r.kid >= group[0] && r.kid <= group[1]))
         && (!F.noted || notesFor(r.kid, migr).length > 0)
-        && (F.showOut || localEvals()[r.kid]?.status !== "除外"),
+        && (F.showOut || localEvals()[r.kid]?.status !== "除外");
+    const table = sortableTable({
+      rows, initialSort: { key: "kid", dir: "asc" }, pageSize: 50,
+      filter: () => pass,
       columns: [
         { key: "_star", label: "", sort: false, cell: r => star(r.kid) },
         { key: "_score", label: "評価", r: true, sortVal: r => evaluate(r, people, localEvals()[r.kid]).total, cell: r => { const e = evaluate(r, people, localEvals()[r.kid]); const st = localEvals()[r.kid]?.status;
@@ -1214,9 +1226,22 @@ async function viewMigrate(param) {
         { key: "_power", label: "総戦力", r: true, hs: true, cell: r => `<span class="num">${jp(r._power)}</span>` },
         { key: "state_transfer_score", label: "移民スコア", r: true, hs: true, cell: r => `<span class="num">${jp(r.state_transfer_score)}</span>` },
         { key: "age_days", label: "開設", r: true, hs: true, cell: r => r.age_days != null ? `<span class="num">${int(r.age_days)}</span>日` : "–" },
+        { key: "pet", label: "ペット総力", r: true, hs: true, cell: r => `<span class="num">${jp(r.pet)}</span>` },
+        { key: "isl", label: "島の繁栄度", r: true, hs: true, cell: r => `<span class="num">${jp(r.isl)}</span>` },
+        { key: "mst", label: "専門家総力", r: true, hs: true, cell: r => `<span class="num">${jp(r.mst)}</span>` },
       ],
     });
     listBox.innerHTML = "";
+    // 絞り込み結果の王国番号をコピー
+    const hits = rows.filter(pass).map(r => r.kid).sort((a, b) => a - b);
+    const cp = document.createElement("div"); cp.className = "copybar";
+    cp.innerHTML = `<button type="button" class="more" style="margin:0">📋 結果の王国番号をコピー（${hits.length}件）</button><span class="dim"></span>`;
+    cp.querySelector("button").onclick = async () => {
+      const text = hits.join(", "), msg = cp.querySelector(".dim");
+      try { await navigator.clipboard.writeText(text); msg.textContent = "コピーしました"; }
+      catch { msg.innerHTML = `<textarea readonly rows="2" style="width:100%;font-size:12px">${esc(text)}</textarea>`; msg.querySelector("textarea").select(); }
+    };
+    listBox.append(cp);
     if (group) {
       const inR = rows.filter(r => r.kid >= group[0] && r.kid <= group[1]);
       const noD = inR.filter(r => r.jp == null).length;
@@ -1235,6 +1260,8 @@ async function viewMigrate(param) {
   app.querySelector("#fnote").onchange = e => { F.noted = e.target.checked; drawList(); };
   app.querySelector("#fout").onchange = e => { F.showOut = e.target.checked; drawList(); };
   app.querySelector("#fnodata").onchange = e => { F.noData = e.target.checked; drawList(); };
+  app.querySelector("#fk1").onchange = e => { F.kMin = e.target.value.trim(); drawList(); };
+  app.querySelector("#fk2").onchange = e => { F.kMax = e.target.value.trim(); drawList(); };
   app.querySelector("#fage1").onchange = e => { F.ageMin = e.target.value; drawList(); };
   app.querySelector("#fage2").onchange = e => { F.ageMax = e.target.value; drawList(); };
   drawList();
@@ -1363,6 +1390,7 @@ async function viewMigrateState(kid) {
       <span>大同盟 <b>${r.big ?? "–"}</b></span><span>SvS <b>${r.svsN ? `${r.svsW}勝${r.svsN - r.svsW}敗` : "記録なし"}</b></span>
       <span>総戦力 <b>${jp(r._power)}</b></span><span>移民スコア <b>${jp(r.state_transfer_score)}</b></span>
       <span>人数 <b>${int(r.player_count)}</b></span><span>開設 <b>${r.age_days != null ? int(r.age_days) + "日" : "–"}</b></span>
+      <span>ペット総力 <b>${jp(r.pet_power ?? x.pet)}</b></span><span>島の繁栄度 <b>${jp(r.island_prosperity ?? x.isl)}</b></span><span>専門家総力 <b>${jp(r.master_power ?? x.mst)}</b></span>
     </div>
     <h2>評価</h2>
     <div class="evalbox">

@@ -1,5 +1,5 @@
 {
- "updated_at": "2026-11-13T00:41:10.503Z",
+ "updated_at": "2026-11-20T01:25:57.115Z",
  "_source": "公式Wiki（whiteoutsurvival.wiki）の各英雄ページから自動作成。ID＝専用装備画像 equipment_icon_10XXXXX またはスキル画像 hero_skill_icon_XXXXXn の番号。日本語名＝同ページの日本語版リンク先の名前。画像の権利は Century Games にあります。",
  "icon_base": "https://gom-s3-user-avatar.s3.us-west-2.amazonaws.com/wp-content/uploads/",
  "heroes": {
@@ -769,6 +769,42 @@
     "gear": "2026/07/equipment_icon_1050064.png"
    },
    "url": "https://www.whiteoutsurvival.wiki/heroes/eleanor/",
+   "conflict": false
+  },
+  "50065": {
+   "id": "50065",
+   "en": "Jordan",
+   "ja": "ヨドン",
+   "troop": "Infantry",
+   "icons": {
+    "hero": "2026/11/%E8%8B%B1%E9%9B%84%E5%A4%B4%E5%83%8Ficon%EF%BC%8818%E4%BB%A3%E7%9B%BE%E5%85%B5%EF%BC%89.png",
+    "gear": "2026/11/equipment_icon_1050065.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/jordan/",
+   "conflict": false
+  },
+  "50066": {
+   "id": "50066",
+   "en": "Nikola",
+   "ja": "ニコラ",
+   "troop": "Lancer",
+   "icons": {
+    "hero": "2026/11/%E8%8B%B1%E9%9B%84%E5%A4%B4%E5%83%8Ficon%EF%BC%8818%E4%BB%A3%E7%9F%9B%E5%85%B5%EF%BC%89.png",
+    "gear": "2026/11/equipment_icon_1050066.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/nikola/",
+   "conflict": false
+  },
+  "50067": {
+   "id": "50067",
+   "en": "Aisha",
+   "ja": "アイシア",
+   "troop": "Marksman",
+   "icons": {
+    "hero": "2026/11/%E8%8B%B1%E9%9B%84%E5%A4%B4%E5%83%8Ficon%EF%BC%8818%E4%BB%A3%E5%BC%93%E5%85%B5%EF%BC%89.png",
+    "gear": "2026/11/equipment_icon_1050067.png"
+   },
+   "url": "https://www.whiteoutsurvival.wiki/heroes/aisha/",
    "conflict": false
   }
  },
